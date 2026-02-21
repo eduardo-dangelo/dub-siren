@@ -57,10 +57,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#333',
+    transform: [{ rotate: '-90deg' }],
+    boxShadow: '-1px 2px 6px 0 rgba(0, 0, 0, 0.2)',
   },
   buttonPressed: {
-    backgroundColor: '#333',
-    transform: [{ scale: 0.95 }],
+    // backgroundColor: '#333',
+    transform: [{ rotate: '-90deg' }],
+    boxShadow: 'none',
   },
   label: {
     marginBottom: 4,

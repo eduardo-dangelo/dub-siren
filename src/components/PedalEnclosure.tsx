@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    boxShadow: '3px 6px 18px 0 rgba(0, 0, 0, 0.9)',
   },
   content: {
     flex: 1,

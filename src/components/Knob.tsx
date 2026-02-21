@@ -44,18 +44,20 @@ export function Knob({
   return (
     <View style={[styles.container, verticalLabel && styles.containerVertical]}>
       <Text style={[styles.label, verticalLabel && styles.labelVertical]}>{label}</Text>
-      <Pressable onPress={handlePress} style={styles.knobWrapper}>
-        <View
-          style={[
-            styles.knob,
-            { backgroundColor: color },
-            { transform: [{ rotate: `${rotation}deg` }] },
-          ]}
-        >
-          <View style={styles.indicator} />
-        </View>
-      </Pressable>
-      <Text style={styles.valueLabel}>{displayLabel}</Text>
+      {/* <View style={styles.knobContainer}> */}
+        <Pressable onPress={handlePress} style={styles.knobWrapper}>
+          <View
+            style={[
+              styles.knob,
+              { backgroundColor: color },
+              { transform: [{ rotate: `${rotation}deg` }] },
+            ]}
+          >
+            <View style={styles.indicator} />
+          </View>
+        </Pressable>
+        <Text style={styles.valueLabel}>{displayLabel}</Text>
+      {/* </View> */}
     </View>
   );
 }
@@ -83,6 +85,7 @@ const styles = StyleSheet.create({
   },
   knobWrapper: {
     padding: 4,
+    transform: [{ rotate: '-90deg' }],
   },
   knob: {
     width: 40,
@@ -92,6 +95,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(0,0,0,0.2)',
+    boxShadow: '0 0 18px 0 rgba(0, 0, 0, 0.9)',
   },
   indicator: {
     width: 2,
@@ -102,8 +106,9 @@ const styles = StyleSheet.create({
     top: 2,
   },
   valueLabel: {
-    fontSize: 9,
+    fontSize: 12,
     color: pedalColors.labelText,
-    marginTop: 4,
+    margin: 8,
+    transform: [{ rotate: '-90deg' }],
   },
 });

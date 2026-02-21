@@ -37,28 +37,6 @@ export default function App() {
       <StatusBar style="dark" />
       <PedalEnclosure>
         <View style={styles.landscapeLayout}>
-          <View style={styles.leftColumn}>
-            <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} verticalLabel />
-            <SirenButton
-              label="HOLD"
-              onPressIn={momentaryPress}
-              onPressOut={momentaryRelease}
-              verticalLabel
-            />
-            <SirenButton
-              label="SIREN"
-              onPressIn={sirenPress}
-              onPressOut={sirenRelease}
-              verticalLabel
-            />
-            <SirenButton
-              label="TONE"
-              onPressIn={tonePress}
-              onPressOut={toneRelease}
-              verticalLabel
-            />
-            <PowerLed label="POWER" isOn={isPlaying} verticalLabel />
-          </View>
           <View style={styles.rightColumn}>
             <Knob
               label="PITCH"
@@ -87,6 +65,28 @@ export default function App() {
               labels={['1', '2', '3', 'OFF']}
               verticalLabel
             />
+          </View>
+          <View style={styles.leftColumn}>
+            <PowerLed label="POWER" isOn={isPlaying} verticalLabel />            
+            <SirenButton
+              label="SIREN"
+              onPressIn={sirenPress}
+              onPressOut={sirenRelease}
+              // verticalLabel
+            />
+            <SirenButton
+              label="TONE"
+              onPressIn={tonePress}
+              onPressOut={toneRelease}
+              // verticalLabel
+            />
+            <SirenButton
+              label="HOLD"
+              onPressIn={momentaryPress}
+              onPressOut={momentaryRelease}
+              // verticalLabel
+            />
+            <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} verticalLabel />
           </View>
         </View>
       </PedalEnclosure>

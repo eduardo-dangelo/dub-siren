@@ -7,7 +7,7 @@ export const pedalColors = {
   /** Brushed metallic grey enclosure */
   enclosure: '#7A7A7A',
   enclosureLight: '#8B8B8B',
-  enclosureDark: '#6A6A6A',
+  enclosureDark: '#2A2A2A',
 
   /** Knob cap colors */
   knobPitch: '#C41E3A',   // Red
