@@ -65,7 +65,7 @@ export function Knob({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    minWidth: 56,
+    minWidth: 64,
   },
   containerVertical: {
     flexDirection: 'row',
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-90deg' }],
   },
   knob: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   },
   indicator: {
     width: 2,
-    height: 12,
+    height: 14,
     backgroundColor: pedalColors.indicatorWhite,
     borderRadius: 1,
     position: 'absolute',

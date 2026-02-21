@@ -33,7 +33,7 @@ export function ToggleSwitch({ label, value, onToggle, verticalLabel = false }: 
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 58,
   },
   containerVertical: {
     flexDirection: 'row',
@@ -52,17 +52,17 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-90deg' }],
   },
   track: {
-    width: 34,
-    height: 20,
-    borderRadius: 10,
+    width: 40,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#555',
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   thumb: {
-    width: 15,
-    height: 15,
-    borderRadius: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: pedalColors.toggleChrome,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

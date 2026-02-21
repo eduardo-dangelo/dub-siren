@@ -8,6 +8,7 @@ import { SirenButton } from './src/components/SirenButton';
 import { ToggleSwitch } from './src/components/ToggleSwitch';
 import { useDubSiren } from './src/hooks/useDubSiren';
 import { pedalColors } from './src/theme/pedalColors';
+import { CableJack } from './src/components/CableJack';
 
 export default function App() {
   const {
@@ -90,6 +91,11 @@ export default function App() {
           </View>
         </View>
       </PedalEnclosure>
+      <View style={styles.jackBottom}>
+        <CableJack variant="power" orientation="bottom" />
+        <CableJack variant="input" orientation="bottom" />
+        {/* <CableJack variant="power" orientation="bottom" /> */}
+      </View>
     </Pressable>
   );
 }
@@ -120,5 +126,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+  },
+  jacksLeft: {
+    position: 'absolute',
+    left: -4,
+    top: '50%',
+    transform: [{ translateY: -19 }],
+    flexDirection: 'column',
+    gap: 10,
+  },
+  jackBottom: {
+    position: 'absolute',
+    top: '85%',
+    left: '50%',
+    // borderWidth: 1,
+    // borderColor: 'red',
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 40,
+    // gap: 10,
+    // zIndex: 100,
+    // transform: [{ translateX: -7 }],
   },
 });

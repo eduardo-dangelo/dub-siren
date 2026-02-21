@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { CableJack } from './CableJack';
 import { pedalColors } from '../theme/pedalColors';
 
 interface PedalEnclosureProps {
@@ -25,8 +26,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 36,
     margin: 12,
-    maxWidth: '90%',
-    maxHeight: '75%',
+    maxWidth: '85%',
+    maxHeight: '70%',
     position: 'relative',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -34,6 +35,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     boxShadow: '3px 6px 18px 0 rgba(0, 0, 0, 0.9)',
+    zIndex: 10,
   },
   content: {
     flex: 1,
@@ -82,4 +84,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
+ 
 });

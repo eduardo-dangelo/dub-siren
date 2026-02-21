@@ -24,4 +24,8 @@ export const pedalColors = {
   labelText: '#000000',
   indicatorWhite: '#FFFFFF',
   screwMetal: '#4A4A4A',
+
+  /** Cable jack elements */
+  jackMetal: '#252525',
+  cableBlack: '#1A1A1A',
 } as const;

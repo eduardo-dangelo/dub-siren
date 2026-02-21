@@ -49,9 +49,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   button: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: pedalColors.buttonBlack,
     justifyContent: 'center',
     alignItems: 'center',
