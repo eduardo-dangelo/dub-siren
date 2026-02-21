@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useRef } from 'react';
 import { ImageBackground, Pressable, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Knob } from './src/components/Knob';
 import { PedalEnclosure } from './src/components/PedalEnclosure';
 import { PowerLed } from './src/components/PowerLed';
@@ -34,7 +35,8 @@ export default function App() {
   }, [resumeContext]);
 
   return (
-    <Pressable style={styles.container} onPress={handleFirstInteraction}>
+    <GestureHandlerRootView style={styles.container}>
+    <Pressable style={styles.fill} onPress={handleFirstInteraction}>
       <ImageBackground
         source={require('./assets/app-bg.png')}
         resizeMode="cover"
@@ -69,7 +71,17 @@ export default function App() {
               value={params.beat}
               maxValue={3}
               onValueChange={(v) => setParams({ beat: v })}
-              labels={['1', '2', '3', 'OFF']}
+              labels={['0', '1', '2', '3']}
+              verticalLabel
+            />
+            <Knob
+              label="VOL"
+              type="volume"
+              value={params.volume}
+              maxValue={1}
+              minValue={0}
+              continuous
+              onValueChange={(v) => setParams({ volume: v })}
               verticalLabel
             />
             </View>
@@ -104,6 +116,7 @@ export default function App() {
         </View>
       </ImageBackground>
     </Pressable>
+    </GestureHandlerRootView>
   );
 }
 
@@ -112,6 +125,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: pedalColors.enclosureDark,
   },
+  fill: {
+    flex: 1,
+  },
   background: {
     flex: 1,
     justifyContent: 'center',
@@ -119,7 +135,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(40, 40, 40, 0.88)',
+    backgroundColor: 'rgba(30, 30, 30, 0.88)',
   },
   landscapeLayout: {
     flex: 1,
