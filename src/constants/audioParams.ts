@@ -19,3 +19,12 @@ export const MODE_WAVEFORMS: OscillatorType[] = ['sine', 'triangle', 'square', '
 
 /** Lowpass filter cutoff (Hz) - softens square wave harshness */
 export const LOWPASS_CUTOFF = 3000;
+
+/** Reverb: first delay time (s) */
+export const REVERB_DELAY_1 = 0.03;
+/** Reverb: second delay time (s) */
+export const REVERB_DELAY_2 = 0.05;
+/** Reverb: feedback amount (0-1) */
+export const REVERB_FEEDBACK = 0.4;
+/** Reverb: lowpass cutoff on tail (Hz) */
+export const REVERB_TAIL_CUTOFF = 2500;

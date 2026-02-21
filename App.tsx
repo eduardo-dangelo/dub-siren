@@ -84,6 +84,16 @@ export default function App() {
               onValueChange={(v) => setParams({ volume: v })}
               verticalLabel
             />
+            <Knob
+              label="REV"
+              type="reverb"
+              value={params.reverb}
+              maxValue={1}
+              minValue={0}
+              continuous
+              onValueChange={(v) => setParams({ reverb: v })}
+              verticalLabel
+            />
             </View>
             <View style={styles.leftColumn}>
             <PowerLed label="POWER" isOn={isPlaying} verticalLabel />            

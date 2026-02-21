@@ -4,7 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { pedalColors } from '../theme/pedalColors';
 
-export type KnobType = 'pitch' | 'mode' | 'beat' | 'volume';
+export type KnobType = 'pitch' | 'mode' | 'beat' | 'volume' | 'reverb';
 
 interface KnobProps {
   label: string;
@@ -23,6 +23,7 @@ const KNOB_COLORS: Record<KnobType, string> = {
   mode: pedalColors.knobMode,
   beat: pedalColors.knobBeat,
   volume: pedalColors.knobVolume,
+  reverb: pedalColors.knobReverb,
 };
 
 const SENSITIVITY = 20; // pixels per step (discrete)
