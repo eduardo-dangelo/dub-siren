@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ImageBackground, Pressable, StyleSheet, View } from 'react-native';
 import { Knob } from './src/components/Knob';
 import { PedalEnclosure } from './src/components/PedalEnclosure';
 import { PowerLed } from './src/components/PowerLed';
@@ -35,10 +35,16 @@ export default function App() {
 
   return (
     <Pressable style={styles.container} onPress={handleFirstInteraction}>
-      <StatusBar style="dark" />
-      <PedalEnclosure>
-        <View style={styles.landscapeLayout}>
-          <View style={styles.rightColumn}>
+      <ImageBackground
+        source={require('./assets/app-bg.png')}
+        resizeMode="cover"
+        style={styles.background}
+      >
+        <View style={styles.overlay} pointerEvents="none" />
+        <StatusBar style="dark" />
+        <PedalEnclosure>
+          <View style={styles.landscapeLayout}>
+            <View style={styles.rightColumn}>
             <Knob
               label="PITCH"
               type="pitch"
@@ -66,8 +72,8 @@ export default function App() {
               labels={['1', '2', '3', 'OFF']}
               verticalLabel
             />
-          </View>
-          <View style={styles.leftColumn}>
+            </View>
+            <View style={styles.leftColumn}>
             <PowerLed label="POWER" isOn={isPlaying} verticalLabel />            
             <SirenButton
               label="SIREN"
@@ -88,14 +94,15 @@ export default function App() {
               // verticalLabel
             />
             <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} verticalLabel />
+            </View>
           </View>
+        </PedalEnclosure>
+        <View style={styles.jackBottom}>
+          {/* <CableJack variant="power" orientation="bottom" /> */}
+          {/* <CableJack variant="input" orientation="bottom" /> */}
+          {/* <CableJack variant="power" orientation="bottom" /> */}
         </View>
-      </PedalEnclosure>
-      <View style={styles.jackBottom}>
-        <CableJack variant="power" orientation="bottom" />
-        <CableJack variant="input" orientation="bottom" />
-        {/* <CableJack variant="power" orientation="bottom" /> */}
-      </View>
+      </ImageBackground>
     </Pressable>
   );
 }
@@ -104,8 +111,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: pedalColors.enclosureDark,
+  },
+  background: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(40, 40, 40, 0.88)',
   },
   landscapeLayout: {
     flex: 1,
@@ -138,12 +152,12 @@ const styles = StyleSheet.create({
   jackBottom: {
     position: 'absolute',
     top: '85%',
-    left: '50%',
+    left: '60%',
     // borderWidth: 1,
     // borderColor: 'red',
     display: 'flex',
     flexDirection: 'row',
-    gap: 40,
+    gap: 30,
     // gap: 10,
     // zIndex: 100,
     // transform: [{ translateX: -7 }],

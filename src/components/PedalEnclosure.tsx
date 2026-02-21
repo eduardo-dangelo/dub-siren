@@ -1,6 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { CableJack } from './CableJack';
+import { ImageBackground, StyleSheet, View } from 'react-native';
 import { pedalColors } from '../theme/pedalColors';
 
 interface PedalEnclosureProps {
@@ -9,13 +8,19 @@ interface PedalEnclosureProps {
 
 export function PedalEnclosure({ children }: PedalEnclosureProps) {
   return (
-    <View style={styles.enclosure}>
+    <ImageBackground
+      source={require('../../assets/enclosure-metal.png')}
+      resizeMode="cover"
+      style={styles.enclosure}
+      imageStyle={styles.enclosureImage}
+    >
+      <View style={styles.overlay} pointerEvents="none" />
       <View style={styles.screwTopLeft} />
       <View style={styles.screwTopRight} />
       <View style={styles.content}>{children}</View>
       <View style={styles.screwBottomLeft} />
       <View style={styles.screwBottomRight} />
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -36,6 +41,14 @@ const styles = StyleSheet.create({
     elevation: 8,
     boxShadow: '3px 6px 18px 0 rgba(0, 0, 0, 0.9)',
     zIndex: 10,
+  },
+  enclosureImage: {
+    borderRadius: 8,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(180, 180, 180, 0.58)',
+    borderRadius: 8,
   },
   content: {
     flex: 1,
