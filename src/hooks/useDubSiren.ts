@@ -18,7 +18,8 @@ import {
 export interface DubSirenParams {
   pitch: number; // 0-3
   mode: number; // 0-3
-  beat: number; // 0-3 (3 = OFF)
+  beat: number; // 0-3 (0 = OFF)
+  volume: number; // 0-1
 }
 
 export interface UseDubSirenReturn {
@@ -40,6 +41,7 @@ export function useDubSiren(): UseDubSirenReturn {
     pitch: 0,
     mode: 2, // square default
     beat: 2,
+    volume: 0.75,
   });
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -104,7 +106,7 @@ export function useDubSiren(): UseDubSirenReturn {
 
       const baseFreq = PITCH_FREQUENCIES[currentParams.pitch];
       const waveform = MODE_WAVEFORMS[currentParams.mode] as OscillatorType;
-      const beatOff = currentParams.beat >= 3;
+      const beatOff = currentParams.beat === 0;
 
       const mainOsc = ctx.createOscillator();
       const lfoOsc = ctx.createOscillator();
@@ -118,7 +120,7 @@ export function useDubSiren(): UseDubSirenReturn {
       mainOsc.frequency.value = baseFreq;
 
       lfoOsc.type = waveform;
-      lfoOsc.frequency.value = beatOff ? 0 : BEAT_RATES[currentParams.beat];
+      lfoOsc.frequency.value = beatOff ? 0 : BEAT_RATES[currentParams.beat - 1];
       lfoGain.gain.value = beatOff ? 0 : LFO_MODULATION_DEPTH;
 
       constantSource.offset.value = 1;
@@ -133,7 +135,7 @@ export function useDubSiren(): UseDubSirenReturn {
       filter.connect(outputGain);
       outputGain.connect(ctx.destination);
 
-      outputGain.gain.value = 0.75;
+      outputGain.gain.value = currentParams.volume;
       filter.type = 'lowpass';
       filter.frequency.value = LOWPASS_CUTOFF;
 
@@ -181,16 +183,17 @@ export function useDubSiren(): UseDubSirenReturn {
 
     const baseFreq = PITCH_FREQUENCIES[params.pitch];
     const waveform = MODE_WAVEFORMS[params.mode] as OscillatorType;
-    const beatOff = params.beat >= 3;
+    const beatOff = params.beat === 0;
 
     mainOsc.frequency.setValueAtTime(baseFreq, 0);
     lfoOsc.type = waveform;
-    lfoOsc.frequency.value = beatOff ? 0 : BEAT_RATES[params.beat];
+    lfoOsc.frequency.value = beatOff ? 0 : BEAT_RATES[params.beat - 1];
     lfoGain.gain.value = beatOff ? 0 : LFO_MODULATION_DEPTH;
+    outputGain.gain.value = params.volume;
   }, [params, isPlaying]);
 
   const sirenPress = useCallback(() => {
-    if (!isPlaying || params.beat < 3) return;
+    if (!isPlaying || params.beat !== 0) return;
     const manualGain = manualGainRef.current;
     if (!manualGain) return;
     manualGain.gain.setValueAtTime(LFO_MODULATION_DEPTH, 0);
@@ -203,7 +206,7 @@ export function useDubSiren(): UseDubSirenReturn {
   }, []);
 
   const tonePress = useCallback(() => {
-    if (!isPlaying || params.beat < 3) return;
+    if (!isPlaying || params.beat !== 0) return;
     const manualGain = manualGainRef.current;
     if (!manualGain) return;
     manualGain.gain.setValueAtTime(-LFO_MODULATION_DEPTH, 0);

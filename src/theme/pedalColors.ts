@@ -13,6 +13,7 @@ export const pedalColors = {
   knobPitch: '#C41E3A',   // Red
   knobMode: '#F4C430',    // Yellow
   knobBeat: '#228B22',    // Green
+  knobVolume: '#4169E1',  // Royal blue
 
   /** Controls */
   buttonBlack: '#1A1A1A',
