@@ -70,6 +70,7 @@ export default function App() {
               type="beat"
               value={params.beat}
               maxValue={3}
+              // continuous
               onValueChange={(v) => setParams({ beat: v })}
               labels={['0', '1', '2', '3']}
               verticalLabel
@@ -82,16 +83,6 @@ export default function App() {
               minValue={0}
               continuous
               onValueChange={(v) => setParams({ volume: v })}
-              verticalLabel
-            />
-            <Knob
-              label="REV"
-              type="reverb"
-              value={params.reverb}
-              maxValue={1}
-              minValue={0}
-              continuous
-              onValueChange={(v) => setParams({ reverb: v })}
               verticalLabel
             />
             </View>
