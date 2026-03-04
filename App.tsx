@@ -66,7 +66,7 @@ export default function App() {
               maxValue={3}
               onValueChange={(v) => setParams({ pitch: v })}
               labels={['1', '2', '3', '4']}
-              verticalLabel
+              // verticalLabelx
             />
             <Knob
               label="MODE"
@@ -75,7 +75,6 @@ export default function App() {
               maxValue={3}
               onValueChange={(v) => setParams({ mode: v })}
               labels={['1', '2', '3', '4']}
-              verticalLabel
             />
             <Knob
               label="BEAT"
@@ -85,7 +84,6 @@ export default function App() {
               // continuous
               onValueChange={(v) => setParams({ beat: v })}
               labels={['0', '1', '2', '3']}
-              verticalLabel
             />
             <Knob
               label="VOL"
@@ -95,11 +93,10 @@ export default function App() {
               minValue={0}
               continuous
               onValueChange={(v) => setParams({ volume: v })}
-              verticalLabel
             />
             </View>
             <View style={styles.leftColumn}>
-            <PowerLed label="POWER" isOn={isPlaying} verticalLabel />            
+            <PowerLed label="POWER" isOn={isPlaying} />            
             <SirenButton
               label="SIREN"
               onPressIn={sirenPress}
@@ -118,14 +115,14 @@ export default function App() {
               onPressOut={momentaryRelease}
               // verticalLabel
             />
-            <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} verticalLabel />
+            <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} />
             </View>
           </View>
         </PedalEnclosure>
         <View style={styles.jackBottom}>
-          {/* <CableJack variant="power" orientation="bottom" /> */}
-          {/* <CableJack variant="input" orientation="bottom" /> */}
-          {/* <CableJack variant="power" orientation="bottom" /> */}
+          
+          <CableJack variant="input" orientation="bottom" />
+          <CableJack variant="power" orientation="bottom" />
         </View>
       </ImageBackground>
     </Pressable>
@@ -140,6 +137,7 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
+    
   },
   background: {
     flex: 1,
@@ -152,20 +150,20 @@ const styles = StyleSheet.create({
   },
   landscapeLayout: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'space-between',
     alignItems: 'stretch',
     width: '100%',
     paddingHorizontal: 12,
   },
   leftColumn: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
   },
   rightColumn: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,

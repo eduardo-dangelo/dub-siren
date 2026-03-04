@@ -122,9 +122,9 @@ export function Knob({
       : String(value + 1);
 
   return (
-    <View style={[styles.container, verticalLabel && styles.containerVertical]}>
+    <View style={[styles.container]}>
       <View style={styles.labelContainer}>
-        <Text style={[styles.label, verticalLabel && styles.labelVertical]}>{label}</Text>
+        <Text style={[styles.label]}>{label}</Text>
       </View>
       <GestureDetector gesture={gesture}>
         <View style={styles.knobWrapper}>
@@ -146,24 +146,19 @@ export function Knob({
   );
 }
 
-const KNOB_HEIGHT = 140;
+const KNOB_WIDTH = 100;
 const TITLE_HEIGHT = 'auto';
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'stretch',
-    width: KNOB_HEIGHT,
+    width: KNOB_WIDTH,
     display: 'flex',
-    flexDirection: 'row',
+    flexDirection: 'column',
+    alignItems: 'center',
     justifyContent: 'space-between',
     padding: 0,
   },
-  containerVertical: {
-    flexDirection: 'row',
-    width: KNOB_HEIGHT,
-  },
   labelContainer: {
-    flex: 1,
     width: TITLE_HEIGHT,
     height: TITLE_HEIGHT,
     alignItems: 'center',
@@ -173,7 +168,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: pedalColors.labelText,
-    // marginBottom: 4,
     margin: 0,
     letterSpacing: 0.5,
   },
@@ -184,7 +178,8 @@ const styles = StyleSheet.create({
   },
   knobWrapper: {
     padding: 4,
-    transform: [{ rotate: '-90deg' }],
+    marginTop: 10,
+    marginBottom: 10,
   },
   knob: {
     width: 48,
@@ -217,6 +212,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: pedalColors.labelText,
     margin: 8,
-    transform: [{ rotate: '-90deg' }],
   },
 });
