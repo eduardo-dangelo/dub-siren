@@ -2,31 +2,74 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AudioContext,
   AudioNode,
-  BiquadFilterNode,
-  ConstantSourceNode,
   ConvolverNode,
   GainNode,
-  OscillatorNode,
 } from 'react-native-audio-api';
-import {
-  BEAT_RATES,
-  DELAY_ENABLED,
-  LFO_MODULATION_DEPTH,
-  LFO_SMOOTH_CUTOFF,
-  LOWPASS_CUTOFF,
-  MAIN_OSC_WAVEFORM,
-  MODE_WAVEFORMS,
-  OscillatorType,
-  PITCH_FREQUENCIES,
-  RELEASE_MS,
-  SATURATION_AMOUNT,
-  SATURATION_DRIVE_POST,
-  SATURATION_DRIVE_PRE,
-  SATURATION_ENABLED,
-  SMOOTH_LFO,
-} from '../constants/audioParams';
+import { DELAY_ENABLED } from '../constants/audioParams';
 import { createDelayImpulseResponse } from '../utils/delayImpulse';
-import { makeSoftClipCurve } from '../utils/saturationCurve';
+import { getSampleBuffer, makeSampleKey, type SampleVariant } from '../audio/sampleMap';
+
+type BufferSourceNode = AudioNode & {
+  buffer: any;
+  loop: boolean;
+  connect: (destinationNode: AudioNode) => AudioNode;
+  start: (when?: number) => void;
+  stop: (when?: number) => void;
+  onended: null | (() => void);
+};
+
+type ButtonKind = 'siren' | 'tone';
+type ButtonPhase = 'idle' | 'intro' | 'loop' | 'ending';
+
+interface ButtonPlaybackState {
+  phase: ButtonPhase;
+  isHeld: boolean;
+  pendingEnd: boolean;
+  introSource: BufferSourceNode | null;
+  loopSource: BufferSourceNode | null;
+  endSource: BufferSourceNode | null;
+}
+
+const BUTTON_VARIANTS: Record<
+  ButtonKind,
+  { intro: SampleVariant; loop: SampleVariant; end: SampleVariant }
+> = {
+  siren: {
+    intro: 'siren_intro',
+    loop: 'siren_loop',
+    end: 'siren_end',
+  },
+  tone: {
+    intro: 'tone_intro',
+    loop: 'tone_loop',
+    end: 'tone_end',
+  },
+};
+
+function stopSource(node: BufferSourceNode | null) {
+  if (!node) return;
+  try {
+    node.stop();
+    node.disconnect();
+  } catch {
+    // ignore
+  }
+}
+
+function makeInitialButtonState(): ButtonPlaybackState {
+  return {
+    phase: 'idle',
+    isHeld: false,
+    pendingEnd: false,
+    introSource: null,
+    loopSource: null,
+    endSource: null,
+  };
+}
+
+function createBufferSource(ctx: AudioContext): BufferSourceNode {
+  return ctx.createBufferSource() as unknown as BufferSourceNode;
+}
 
 export interface DubSirenParams {
   pitch: number; // 0-3
@@ -59,20 +102,11 @@ export function useDubSiren(): UseDubSirenReturn {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const mainOscRef = useRef<OscillatorNode | null>(null);
-  const lfoOscRef = useRef<OscillatorNode | null>(null);
-  const lfoGainRef = useRef<GainNode | null>(null);
   const outputGainRef = useRef<GainNode | null>(null);
-  const filterRef = useRef<BiquadFilterNode | null>(null);
-  const manualGainRef = useRef<GainNode | null>(null);
-  const constantSourceRef = useRef<ConstantSourceNode | null>(null);
   const convolverRef = useRef<ConvolverNode | null>(null);
-  const voiceGainRef = useRef<GainNode | null>(null);
-  const saturationPreGainRef = useRef<GainNode | null>(null);
-  const waveShaperRef = useRef<AudioNode | null>(null);
-  const saturationPostGainRef = useRef<GainNode | null>(null);
-  const voiceChainInputRef = useRef<AudioNode | null>(null);
-  const releaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mainSourceRef = useRef<BufferSourceNode | null>(null);
+  const sirenStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
+  const toneStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const paramsRef = useRef(params);
   paramsRef.current = params;
 
@@ -88,284 +122,413 @@ export function useDubSiren(): UseDubSirenReturn {
   }, []);
 
   const resumeContext = useCallback(async () => {
-    const ctx = audioContextRef.current;
-    if (ctx && ctx.state === 'suspended') {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
       await ctx.resume();
     }
-  }, []);
+  }, [getAudioContext]);
 
-  /** Cleanup after release envelope completes */
-  const doStopCleanup = useCallback(() => {
-    try {
-      if (lfoGainRef.current) {
-        lfoGainRef.current.disconnect();
+  const ensureOutputChain = useCallback(
+    (ctx: AudioContext): AudioNode => {
+      let output = outputGainRef.current;
+      let convolver = convolverRef.current;
+
+      if (!output) {
+        output = ctx.createGain();
+        output.gain.value = paramsRef.current.volume;
+        output.connect(ctx.destination);
+        outputGainRef.current = output;
+      } else {
+        output.gain.value = paramsRef.current.volume;
       }
-      if (manualGainRef.current && mainOscRef.current) {
-        manualGainRef.current.disconnect(mainOscRef.current.frequency);
-      }
-      constantSourceRef.current?.disconnect();
-      mainOscRef.current?.disconnect();
-      lfoOscRef.current?.disconnect();
-      voiceGainRef.current?.disconnect();
-    } catch {
-      // Ignore disconnect errors
-    }
-    mainOscRef.current = null;
-    lfoOscRef.current = null;
-    lfoGainRef.current = null;
-    manualGainRef.current = null;
-    constantSourceRef.current = null;
-    voiceGainRef.current = null;
-    releaseTimeoutRef.current = null;
-    setIsPlaying(false);
-  }, []);
 
-  /** Soft stop: fade out via release envelope, then stop oscillators */
-  const stopOscillators = useCallback(() => {
-    const ctx = audioContextRef.current;
-    const voiceGain = voiceGainRef.current;
-    const mainOsc = mainOscRef.current;
-    const lfoOsc = lfoOscRef.current;
-    const constantSource = constantSourceRef.current;
-
-    if (!ctx || !voiceGain || !mainOsc || !lfoOsc || !constantSource) {
-      doStopCleanup();
-      return;
-    }
-
-    const stopTime = ctx.currentTime + RELEASE_MS / 1000;
-
-    voiceGain.gain.cancelScheduledValues(ctx.currentTime);
-    voiceGain.gain.setValueAtTime(voiceGain.gain.value, ctx.currentTime);
-    voiceGain.gain.linearRampToValueAtTime(0, stopTime);
-
-    mainOsc.stop(stopTime);
-    lfoOsc.stop(stopTime);
-    constantSource.stop(stopTime);
-
-    releaseTimeoutRef.current = setTimeout(() => {
-      doStopCleanup();
-    }, RELEASE_MS + 20);
-  }, [doStopCleanup]);
-
-  /** Full cleanup: disconnect everything (for unmount) */
-  const fullCleanup = useCallback(() => {
-    if (releaseTimeoutRef.current) {
-      clearTimeout(releaseTimeoutRef.current);
-      releaseTimeoutRef.current = null;
-    }
-    try {
-      if (lfoGainRef.current) {
-        lfoGainRef.current.disconnect();
-      }
-      if (manualGainRef.current && mainOscRef.current) {
-        manualGainRef.current.disconnect(mainOscRef.current.frequency);
-      }
-      constantSourceRef.current?.disconnect();
-      constantSourceRef.current?.stop();
-      mainOscRef.current?.disconnect();
-      lfoOscRef.current?.disconnect();
-      mainOscRef.current?.stop();
-      lfoOscRef.current?.stop();
-      voiceGainRef.current?.disconnect();
-      saturationPostGainRef.current?.disconnect();
-      convolverRef.current?.disconnect();
-      outputGainRef.current?.disconnect();
-    } catch {
-      // Ignore disconnect errors
-    }
-    mainOscRef.current = null;
-    lfoOscRef.current = null;
-    lfoGainRef.current = null;
-    outputGainRef.current = null;
-    filterRef.current = null;
-    manualGainRef.current = null;
-    constantSourceRef.current = null;
-    voiceGainRef.current = null;
-    saturationPreGainRef.current = null;
-    waveShaperRef.current = null;
-    saturationPostGainRef.current = null;
-    voiceChainInputRef.current = null;
-    convolverRef.current = null;
-    setIsPlaying(false);
-  }, []);
-
-  const startOscillators = useCallback(
-    (currentParams: DubSirenParams) => {
-      const ctx = getAudioContext();
-      if (mainOscRef.current) return;
-
-      const baseFreq = PITCH_FREQUENCIES[currentParams.pitch];
-      const waveform = MODE_WAVEFORMS[currentParams.mode] as OscillatorType;
-      const beatOff = currentParams.beat === 0;
-
-      let filter = filterRef.current;
-      let outputGain = outputGainRef.current;
-
-      if (!filter) {
-        outputGain = ctx.createGain();
-        outputGain.gain.value = currentParams.volume;
-        outputGain.connect(ctx.destination);
-
-        filter = ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = LOWPASS_CUTOFF;
-
-        // When createWaveShaper is unavailable (e.g. react-native-audio-api on native), saturation is skipped.
-        const hasWaveShaper =
-          SATURATION_ENABLED &&
-          typeof (ctx as { createWaveShaper?: () => AudioNode }).createWaveShaper === 'function';
-
-        let voiceChainInput: AudioNode = filter;
-        if (hasWaveShaper) {
-          const preGain = ctx.createGain();
-          const waveShaper = (ctx as { createWaveShaper(): AudioNode & { curve: Float32Array | null; oversample?: string } }).createWaveShaper();
-          const postGain = ctx.createGain();
-          preGain.gain.value = SATURATION_DRIVE_PRE;
-          postGain.gain.value = SATURATION_DRIVE_POST;
-          waveShaper.curve = makeSoftClipCurve(SATURATION_AMOUNT);
-          if ('oversample' in waveShaper && waveShaper.oversample !== undefined) {
-            waveShaper.oversample = '2x';
-          }
-          preGain.connect(waveShaper);
-          waveShaper.connect(postGain);
-          postGain.connect(filter);
-          voiceChainInput = preGain;
-          saturationPreGainRef.current = preGain;
-          waveShaperRef.current = waveShaper;
-          saturationPostGainRef.current = postGain;
-        }
-
-        if (DELAY_ENABLED) {
-          const convolver = ctx.createConvolver();
+      if (DELAY_ENABLED) {
+        if (!convolver) {
+          convolver = ctx.createConvolver();
           convolver.buffer = createDelayImpulseResponse(ctx);
           convolver.normalize = false;
-          filter.connect(convolver);
-          convolver.connect(outputGain);
+          convolver.connect(output);
           convolverRef.current = convolver;
-        } else {
-          filter.connect(outputGain);
+        }
+        return convolver;
+      }
+
+      if (convolver) {
+        try {
+          convolver.disconnect();
+        } catch {
+          // ignore
+        }
+        convolverRef.current = null;
+      }
+
+      return output;
+    },
+    []
+  );
+
+  const stopMainSample = useCallback(() => {
+    const current = mainSourceRef.current;
+    if (current) {
+      stopSource(current);
+    }
+    mainSourceRef.current = null;
+    setIsPlaying(false);
+  }, []);
+
+  const startMainSample = useCallback(
+    async (currentParams: DubSirenParams) => {
+      if (__DEV__) console.log('[DubSiren] startMainSample', { pitch: currentParams.pitch, mode: currentParams.mode, beat: currentParams.beat });
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      if (mainSourceRef.current) {
+        if (__DEV__) console.log('[DubSiren] startMainSample: already playing, skip');
+        return;
+      }
+
+      if (typeof (ctx as any).createBufferSource !== 'function') {
+        if (__DEV__) console.warn('[DubSiren] startMainSample: createBufferSource not available');
+        return;
+      }
+
+      const key = makeSampleKey(currentParams, 'main');
+      const buffer = await getSampleBuffer(key);
+      if (!buffer) {
+        if (__DEV__) console.warn('[DubSiren] startMainSample: no buffer for key', key);
+        return;
+      }
+
+      const chainInput = ensureOutputChain(ctx);
+      const source = createBufferSource(ctx);
+
+      source.buffer = buffer;
+      source.loop = true;
+      try {
+        source.connect(chainInput);
+        source.start();
+      } catch (e) {
+        if (__DEV__) console.warn('[DubSiren] startMainSample: start failed', e);
+        stopSource(source);
+        return;
+      }
+
+      mainSourceRef.current = source;
+      setIsPlaying(true);
+      if (__DEV__) console.log('[DubSiren] startMainSample: playing');
+    },
+    [ensureOutputChain, getAudioContext]
+  );
+
+  const startLoopForButton = useCallback(
+    async (kind: ButtonKind) => {
+      const currentParams = paramsRef.current;
+      if (currentParams.beat !== 3 || currentParams.mode !== 0) {
+        return;
+      }
+
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      const chainInput = ensureOutputChain(ctx);
+      const variants = BUTTON_VARIANTS[kind];
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const state = stateRef.current;
+
+      let buffer: any = null;
+      try {
+        const loopKey = makeSampleKey(currentParams, variants.loop);
+        buffer = await getSampleBuffer(loopKey);
+      } catch (e) {
+        console.warn(`${kind}: loop decode failed`, e);
+        buffer = null;
+      }
+      if (!buffer) {
+        stateRef.current = {
+          ...state,
+          phase: 'idle',
+          loopSource: null,
+        };
+        return;
+      }
+
+      const loopSource = createBufferSource(ctx);
+      loopSource.buffer = buffer;
+      loopSource.loop = true;
+      try {
+        loopSource.connect(chainInput);
+        loopSource.start();
+      } catch (e) {
+        console.warn(`${kind}: loop start failed`, e);
+        stopSource(loopSource);
+        stateRef.current = makeInitialButtonState();
+        return;
+      }
+
+      stateRef.current = {
+        ...state,
+        phase: 'loop',
+        loopSource,
+      };
+    },
+    [ensureOutputChain, getAudioContext]
+  );
+
+  const startEndForButton = useCallback(
+    async (kind: ButtonKind) => {
+      const currentParams = paramsRef.current;
+      if (currentParams.beat !== 3 || currentParams.mode !== 0) {
+        return;
+      }
+
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      const chainInput = ensureOutputChain(ctx);
+      const variants = BUTTON_VARIANTS[kind];
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const state = stateRef.current;
+
+      let buffer: any = null;
+      try {
+        const endKey = makeSampleKey(currentParams, variants.end);
+        buffer = await getSampleBuffer(endKey);
+      } catch (e) {
+        console.warn(`${kind}: end decode failed`, e);
+        buffer = null;
+      }
+      if (!buffer) {
+        stateRef.current = makeInitialButtonState();
+        return;
+      }
+
+      const endSource = createBufferSource(ctx);
+      endSource.buffer = buffer;
+      endSource.loop = false;
+      try {
+        endSource.connect(chainInput);
+      } catch (e) {
+        console.warn(`${kind}: end connect failed`, e);
+        stopSource(endSource);
+        stateRef.current = makeInitialButtonState();
+        return;
+      }
+
+      stateRef.current = {
+        ...state,
+        phase: 'ending',
+        endSource,
+      };
+
+      endSource.onended = () => {
+        const currentState = stateRef.current;
+        if (currentState.endSource !== endSource) {
+          return;
+        }
+        stopSource(endSource);
+        stateRef.current = makeInitialButtonState();
+      };
+
+      try {
+        endSource.start();
+      } catch (e) {
+        console.warn(`${kind}: end start failed`, e);
+        stopSource(endSource);
+        stateRef.current = makeInitialButtonState();
+      }
+    },
+    [ensureOutputChain, getAudioContext]
+  );
+
+  const beginButtonSequence = useCallback(
+    async (kind: ButtonKind) => {
+      const currentParams = paramsRef.current;
+      if (currentParams.beat !== 3 || currentParams.mode !== 0) {
+        return;
+      }
+
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      const chainInput = ensureOutputChain(ctx);
+      const variants = BUTTON_VARIANTS[kind];
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+
+      const existing = stateRef.current;
+      stopSource(existing.introSource);
+      stopSource(existing.loopSource);
+      stopSource(existing.endSource);
+
+      stateRef.current = {
+        phase: 'idle',
+        isHeld: true,
+        pendingEnd: false,
+        introSource: null,
+        loopSource: null,
+        endSource: null,
+      };
+
+      let buffer: any = null;
+      try {
+        const introKey = makeSampleKey(currentParams, variants.intro);
+        buffer = await getSampleBuffer(introKey);
+      } catch (e) {
+        console.warn(`${kind}: intro decode failed`, e);
+        buffer = null;
+      }
+      if (!buffer) {
+        stateRef.current = makeInitialButtonState();
+        return;
+      }
+
+      const introSource = createBufferSource(ctx);
+      introSource.buffer = buffer;
+      introSource.loop = false;
+      try {
+        introSource.connect(chainInput);
+      } catch (e) {
+        console.warn(`${kind}: intro connect failed`, e);
+        stopSource(introSource);
+        stateRef.current = makeInitialButtonState();
+        return;
+      }
+
+      stateRef.current = {
+        ...stateRef.current,
+        phase: 'intro',
+        introSource,
+      };
+
+      introSource.onended = () => {
+        const state = stateRef.current;
+        if (state.introSource !== introSource) {
+          return;
         }
 
-        filterRef.current = filter;
-        outputGainRef.current = outputGain;
-        voiceChainInputRef.current = voiceChainInput;
-      } else {
-        outputGain!.gain.value = currentParams.volume;
-        voiceChainInputRef.current = filter;
+        stateRef.current = {
+          ...state,
+          introSource: null,
+        };
+
+        if (!state.isHeld || state.pendingEnd) {
+          void startEndForButton(kind);
+        } else {
+          void startLoopForButton(kind);
+        }
+      };
+
+      try {
+        introSource.start();
+      } catch (e) {
+        console.warn(`${kind}: intro start failed`, e);
+        stopSource(introSource);
+        stateRef.current = makeInitialButtonState();
       }
-
-      const mainOsc = ctx.createOscillator();
-      const lfoOsc = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
-      const manualGain = ctx.createGain();
-      const constantSource = ctx.createConstantSource();
-
-      mainOsc.type = MAIN_OSC_WAVEFORM;
-      mainOsc.frequency.value = baseFreq;
-      lfoOsc.type = waveform;
-      lfoOsc.frequency.value = beatOff ? 0 : BEAT_RATES[currentParams.beat - 1];
-      lfoGain.gain.value = beatOff ? 0 : LFO_MODULATION_DEPTH;
-      constantSource.offset.value = 1;
-      constantSource.connect(manualGain);
-      manualGain.gain.value = 0;
-      manualGain.connect(mainOsc.frequency);
-      lfoOsc.connect(lfoGain);
-      if (SMOOTH_LFO && !beatOff) {
-        const lfoSmooth = ctx.createBiquadFilter();
-        lfoSmooth.type = 'lowpass';
-        lfoSmooth.frequency.value = LFO_SMOOTH_CUTOFF;
-        lfoGain.connect(lfoSmooth);
-        lfoSmooth.connect(mainOsc.frequency);
-      } else {
-        lfoGain.connect(mainOsc.frequency);
-      }
-
-      const voiceGain = ctx.createGain();
-      voiceGain.gain.value = 1;
-      mainOsc.connect(voiceGain);
-      const chainInput = voiceChainInputRef.current ?? filter;
-      voiceGain.connect(chainInput);
-
-      voiceGainRef.current = voiceGain;
-
-      const t = ctx.currentTime + 0.01;
-      mainOsc.start(t);
-      lfoOsc.start();
-      constantSource.start();
-
-      mainOscRef.current = mainOsc;
-      lfoOscRef.current = lfoOsc;
-      lfoGainRef.current = lfoGain;
-      manualGainRef.current = manualGain;
-      constantSourceRef.current = constantSource;
-      setIsPlaying(true);
     },
-    [getAudioContext]
+    [ensureOutputChain, getAudioContext, startEndForButton, startLoopForButton]
+  );
+
+  const releaseButtonSequence = useCallback(
+    (kind: ButtonKind) => {
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const state = stateRef.current;
+
+      if (state.phase === 'idle') {
+        state.isHeld = false;
+        state.pendingEnd = false;
+        return;
+      }
+
+      state.isHeld = false;
+
+      if (state.phase === 'intro') {
+        state.pendingEnd = true;
+        return;
+      }
+
+      if (state.phase === 'loop') {
+        if (state.loopSource) {
+          stopSource(state.loopSource);
+          state.loopSource = null;
+        }
+        void startEndForButton(kind);
+      }
+      // if ending, let it finish
+    },
+    [startEndForButton]
   );
 
   const trigger = useCallback(async () => {
-    if (isPlaying) {
-      stopOscillators();
+    if (__DEV__) console.log('[DubSiren] trigger called');
+    if (mainSourceRef.current) {
+      stopMainSample();
     } else {
       await resumeContext();
-      startOscillators(paramsRef.current);
+      startMainSample(paramsRef.current).catch((e) => {
+        if (__DEV__) console.warn('[DubSiren] trigger startMainSample failed', e);
+      });
     }
-  }, [isPlaying, resumeContext, startOscillators, stopOscillators]);
+  }, [resumeContext, startMainSample, stopMainSample]);
 
   const momentaryPress = useCallback(async () => {
+    if (__DEV__) console.log('[DubSiren] momentaryPress (HOLD) called');
     await resumeContext();
-    startOscillators(paramsRef.current);
-  }, [resumeContext, startOscillators]);
+    startMainSample(paramsRef.current).catch((e) => {
+      if (__DEV__) console.warn('[DubSiren] momentaryPress startMainSample failed', e);
+    });
+  }, [resumeContext, startMainSample]);
 
   const momentaryRelease = useCallback(() => {
-    stopOscillators();
-  }, [stopOscillators]);
+    stopMainSample();
+  }, [stopMainSample]);
 
   useEffect(() => {
-    if (!isPlaying) return;
-    const mainOsc = mainOscRef.current;
-    const lfoOsc = lfoOscRef.current;
-    const lfoGain = lfoGainRef.current;
-    const outputGain = outputGainRef.current;
-    if (!mainOsc || !lfoOsc || !lfoGain || !outputGain) return;
-
-    const baseFreq = PITCH_FREQUENCIES[params.pitch];
-    const waveform = MODE_WAVEFORMS[params.mode] as OscillatorType;
-    const beatOff = params.beat === 0;
-
-    mainOsc.frequency.setValueAtTime(baseFreq, 0);
-    lfoOsc.type = waveform;
-    lfoOsc.frequency.value = beatOff ? 0 : BEAT_RATES[params.beat - 1];
-    lfoGain.gain.value = beatOff ? 0 : LFO_MODULATION_DEPTH;
-    outputGain.gain.value = params.volume;
-  }, [params, isPlaying]);
+    const output = outputGainRef.current;
+    if (output) {
+      output.gain.value = params.volume;
+    }
+  }, [params.volume]);
 
   const sirenPress = useCallback(() => {
-    if (!isPlaying || params.beat !== 0) return;
-    const manualGain = manualGainRef.current;
-    if (!manualGain) return;
-    manualGain.gain.setValueAtTime(LFO_MODULATION_DEPTH, 0);
-  }, [isPlaying, params.beat]);
+    void beginButtonSequence('siren');
+  }, [beginButtonSequence]);
 
   const sirenRelease = useCallback(() => {
-    const manualGain = manualGainRef.current;
-    if (!manualGain) return;
-    manualGain.gain.setValueAtTime(0, 0);
-  }, []);
+    releaseButtonSequence('siren');
+  }, [releaseButtonSequence]);
 
   const tonePress = useCallback(() => {
-    if (!isPlaying || params.beat !== 0) return;
-    const manualGain = manualGainRef.current;
-    if (!manualGain) return;
-    manualGain.gain.setValueAtTime(-LFO_MODULATION_DEPTH, 0);
-  }, [isPlaying, params.beat]);
+    void beginButtonSequence('tone');
+  }, [beginButtonSequence]);
 
   const toneRelease = useCallback(() => {
-    const manualGain = manualGainRef.current;
-    if (!manualGain) return;
-    manualGain.gain.setValueAtTime(0, 0);
-  }, []);
+    releaseButtonSequence('tone');
+  }, [releaseButtonSequence]);
+
+  const fullCleanup = useCallback(() => {
+    stopMainSample();
+    const buttonRefs = [sirenStateRef, toneStateRef];
+    buttonRefs.forEach((ref) => {
+      const state = ref.current;
+      stopSource(state.introSource);
+      stopSource(state.loopSource);
+      stopSource(state.endSource);
+      ref.current = makeInitialButtonState();
+    });
+    try {
+      convolverRef.current?.disconnect();
+      outputGainRef.current?.disconnect();
+    } catch {
+      // ignore
+    }
+    convolverRef.current = null;
+    outputGainRef.current = null;
+  }, [stopMainSample]);
 
   useEffect(() => {
     return () => {

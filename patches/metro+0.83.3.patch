@@ -1,0 +1,14 @@
+diff --git a/node_modules/metro/src/Server.js b/node_modules/metro/src/Server.js
+index 6adc6d1..aa0aade 100644
+--- a/node_modules/metro/src/Server.js
++++ b/node_modules/metro/src/Server.js
+@@ -426,6 +426,9 @@ class Server {
+     if (!assetPath) {
+       throw new Error("Could not extract asset path from URL");
+     }
++    try {
++      assetPath = decodeURIComponent(assetPath);
++    } catch (_) {}
+     const processingAssetRequestLogEntry = log(
+       createActionStartEntry({
+         action_name: "Processing asset request",

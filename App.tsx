@@ -1,7 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { ImageBackground, Pressable, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AudioManager } from 'react-native-audio-api';
 import { Knob } from './src/components/Knob';
 import { PedalEnclosure } from './src/components/PedalEnclosure';
 import { PowerLed } from './src/components/PowerLed';
@@ -12,6 +13,17 @@ import { pedalColors } from './src/theme/pedalColors';
 import { CableJack } from './src/components/CableJack';
 
 export default function App() {
+  useEffect(() => {
+    // playback-only; defaultToSpeaker is only valid for playAndRecord
+    AudioManager.setAudioSessionOptions({
+      iosCategory: 'playback',
+      iosMode: 'default',
+      iosOptions: ['allowBluetoothA2DP'],
+    });
+    // Explicitly activate the session for reliable startup on iOS.
+    void AudioManager.setAudioSessionActivity(true);
+  }, []);
+
   const {
     params,
     setParams,
