@@ -135,7 +135,9 @@ export function Knob({
               { transform: [{ rotate: `${rotation}deg` }] },
             ]}
           >
-            <View style={styles.indicator} />
+            <View style={styles.knobHolder}>
+              <View style={styles.indicator} />
+            </View>
           </View>
         </View>
       </GestureDetector>
@@ -180,16 +182,31 @@ const styles = StyleSheet.create({
     padding: 4,
     marginTop: 10,
     marginBottom: 10,
+    // borderWidth: 1,
+    // borderColor: 'red',
+    borderRadius: 10,
+    
   },
   knob: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 68,
+    height: 68,
+    borderRadius: '50%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.2)',
     boxShadow: '0 0 18px 0 rgba(0, 0, 0, 0.9)',
+    overflow: 'hidden',
+  },
+  knobHolder: {
+    width: 26,
+    height: 68,
+    // borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
+    boxShadow: '0 0 28px 0 rgba(0, 0, 0, 0.6),inset 0 0 8px 0 rgba(175, 175, 175, 0.3)',
   },
   indicator: {
     width: 2,

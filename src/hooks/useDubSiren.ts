@@ -94,9 +94,9 @@ export interface UseDubSirenReturn {
 
 export function useDubSiren(): UseDubSirenReturn {
   const [params, setParamsState] = useState<DubSirenParams>({
-    pitch: 1,
-    mode: 1,
-    beat: 1,
+    pitch: 0,
+    mode: 0,
+    beat: 0,
     volume: 0.75,
   });
   const [isPlaying, setIsPlaying] = useState(false);

@@ -96,7 +96,13 @@ export default function App() {
             />
             </View>
             <View style={styles.leftColumn}>
-            <PowerLed label="POWER" isOn={isPlaying} />            
+            <PowerLed label="POWER" isOn={isPlaying} /> 
+            <SirenButton
+              label="HOLD"
+              onPressIn={momentaryPress}
+              onPressOut={momentaryRelease}
+              // verticalLabel
+            />           
             <SirenButton
               label="SIREN"
               onPressIn={sirenPress}
@@ -109,18 +115,11 @@ export default function App() {
               onPressOut={toneRelease}
               // verticalLabel
             />
-            <SirenButton
-              label="HOLD"
-              onPressIn={momentaryPress}
-              onPressOut={momentaryRelease}
-              // verticalLabel
-            />
             <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} />
             </View>
           </View>
         </PedalEnclosure>
         <View style={styles.jackBottom}>
-          
           <CableJack variant="input" orientation="bottom" />
           <CableJack variant="power" orientation="bottom" />
         </View>
