@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#555',
     justifyContent: 'center',
     paddingHorizontal: 2,
+    // boxShadow: 'inset 0 3px 6px 0 rgba(0, 0, 0, 1)',
   },
   thumb: {
     width: 18,
@@ -69,6 +70,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 2,
-    boxShadow: '3px 3px 12px 0 rgba(0, 0, 0, 0.9)',
+    boxShadow: '3px 6px 14px 0 rgba(0, 0, 0, 1)',
+    zIndex: 10,
   },
 });

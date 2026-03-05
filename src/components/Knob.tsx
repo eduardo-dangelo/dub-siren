@@ -88,7 +88,7 @@ export function Knob({
           startValueRef.current = valueRef.current;
         })
         .onUpdate((e) => {
-          const effectiveDelta = -e.translationY - e.translationX;
+          const effectiveDelta = -e.translationY + e.translationX;
           const delta = effectiveDelta / SENSITIVITY_CONTINUOUS;
           const newValue = startValueRef.current + delta * valueRange;
           reportValueContinuous(newValue);
@@ -106,7 +106,7 @@ export function Knob({
         startValueRef.current = valueRef.current;
       })
       .onUpdate((e) => {
-        const effectiveDelta = -e.translationY - e.translationX;
+        const effectiveDelta = -e.translationY + e.translationX;
         const steps = Math.round(effectiveDelta / SENSITIVITY);
         const newValue = startValueRef.current + steps;
         reportValueDiscrete(newValue);
@@ -141,9 +141,9 @@ export function Knob({
           </View>
         </View>
       </GestureDetector>
-      <View style={styles.valueLabelContainer}>
+      {/* <View style={styles.valueLabelContainer}>
         <Text style={styles.valueLabel}>{displayLabel}</Text>
-      </View>
+      </View> */}
     </View>
   );
 }
@@ -182,8 +182,6 @@ const styles = StyleSheet.create({
     padding: 4,
     marginTop: 10,
     marginBottom: 10,
-    // borderWidth: 1,
-    // borderColor: 'red',
     borderRadius: 10,
     
   },
@@ -201,10 +199,8 @@ const styles = StyleSheet.create({
   knobHolder: {
     width: 26,
     height: 68,
-    // borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    // borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.3)',
     boxShadow: '0 0 28px 0 rgba(0, 0, 0, 0.6),inset 0 0 8px 0 rgba(175, 175, 175, 0.3)',
   },

@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#333',
-    boxShadow: '-1px 2px 6px 0 rgba(0, 0, 0, 0.2)',
+    boxShadow: '-1px 2px 6px 0 rgba(0, 0, 0, 0.2),inset 0 3px 6px 0 rgba(181, 181, 181, 0.1)',
   },
   buttonPressed: {
     // backgroundColor: '#333',
