@@ -20,39 +20,32 @@ type BufferSourceNode = AudioNode & {
 };
 
 type ButtonKind = 'siren' | 'tone';
-type ButtonPhase = 'idle' | 'intro' | 'loop' | 'ending';
+type ButtonPhase = 'idle' | 'playing_all' | 'ending';
 
 interface ButtonPlaybackState {
   phase: ButtonPhase;
   /**
    * Snapshot of the params at the moment the button
    * sequence begins. We use this so that BEAT/MODE/PITCH
-   * changes while the intro sample is playing do not
-   * accidentally cancel the loop/end stages.
+   * changes while the _ALL sample is playing do not
+   * accidentally cancel the end stage.
    */
   baseParams: DubSirenParams | null;
   isHeld: boolean;
-  pendingEnd: boolean;
-  introSource: BufferSourceNode | null;
-  loopSource: BufferSourceNode | null;
+  allSource: BufferSourceNode | null;
   endSource: BufferSourceNode | null;
-  introTimeoutId: any;
+  allTimeoutId: any;
   endTimeoutId: any;
   gainNode: GainNode | null;
 }
 
-const BUTTON_VARIANTS: Record<
-  ButtonKind,
-  { intro: SampleVariant; loop: SampleVariant; end: SampleVariant }
-> = {
+const BUTTON_VARIANTS: Record<ButtonKind, { all: SampleVariant; end: SampleVariant }> = {
   siren: {
-    intro: 'siren_intro',
-    loop: 'siren_loop',
+    all: 'siren_all',
     end: 'siren_end',
   },
   tone: {
-    intro: 'tone_intro',
-    loop: 'tone_loop',
+    all: 'tone_all',
     end: 'tone_end',
   },
 };
@@ -72,11 +65,9 @@ function makeInitialButtonState(): ButtonPlaybackState {
     phase: 'idle',
     baseParams: null,
     isHeld: false,
-    pendingEnd: false,
-    introSource: null,
-    loopSource: null,
+    allSource: null,
     endSource: null,
-    introTimeoutId: null,
+    allTimeoutId: null,
     endTimeoutId: null,
     gainNode: null,
   };
@@ -125,6 +116,7 @@ export function useDubSiren(): UseDubSirenReturn {
   const convolver0Ref = useRef<ConvolverNode | null>(null);
   const delayGain0Ref = useRef<GainNode | null>(null);
   const mainSourceRef = useRef<BufferSourceNode | null>(null);
+  const mainAllTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sirenStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const toneStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const paramsRef = useRef(params);
@@ -171,6 +163,10 @@ export function useDubSiren(): UseDubSirenReturn {
     convolver0Ref.current = null;
     delayGain0Ref.current = null;
     mainSourceRef.current = null;
+    if (mainAllTimeoutIdRef.current) {
+      clearTimeout(mainAllTimeoutIdRef.current);
+      mainAllTimeoutIdRef.current = null;
+    }
     setIsPlaying(false);
     sirenStateRef.current = makeInitialButtonState();
     toneStateRef.current = makeInitialButtonState();
@@ -286,6 +282,10 @@ export function useDubSiren(): UseDubSirenReturn {
   );
 
   const stopMainSample = useCallback(() => {
+    if (mainAllTimeoutIdRef.current) {
+      clearTimeout(mainAllTimeoutIdRef.current);
+      mainAllTimeoutIdRef.current = null;
+    }
     const current = mainSourceRef.current;
     if (current) {
       stopSource(current);
@@ -313,7 +313,8 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
-      const key = makeSampleKey(currentParams, 'main');
+      const useAll = currentParams.beat === 2 && (currentParams.mode === 0 || currentParams.mode === 3);
+      const key = makeSampleKey(currentParams, useAll ? 'main_all' : 'main');
       const buffer = await getSampleBuffer(key);
       if (!buffer) {
         if (__DEV__) console.warn('[DubSiren] startMainSample: no buffer for key', key);
@@ -324,7 +325,7 @@ export function useDubSiren(): UseDubSirenReturn {
       const source = createBufferSource(ctx);
 
       source.buffer = buffer;
-      source.loop = true;
+      source.loop = !useAll;
       try {
         source.connect(chainInput);
         source.start();
@@ -336,88 +337,23 @@ export function useDubSiren(): UseDubSirenReturn {
 
       mainSourceRef.current = source;
       setIsPlaying(true);
-      if (__DEV__) console.log('[DubSiren] startMainSample: playing');
-    },
-    [ensureOutputChain, getAudioContext]
-  );
 
-  const startLoopForButton = useCallback(
-    async (kind: ButtonKind) => {
-      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
-      const state = stateRef.current;
-      const params = state.baseParams ?? paramsRef.current;
-
-      if (params.beat !== 3 || params.mode !== 0) {
-        if (__DEV__) {
-          console.log(
-            `[DubSiren] startLoopForButton(${kind}): params no longer match BEAT_4/MODE_1, skipping loop`,
-            params
-          );
-        }
-        return;
+      if (useAll) {
+        const durationMs = Math.ceil(buffer.duration * 1000) + 50;
+        mainAllTimeoutIdRef.current = setTimeout(() => {
+          if (mainSourceRef.current !== source) return;
+          try {
+            source.disconnect();
+          } catch {
+            // ignore
+          }
+          mainSourceRef.current = null;
+          mainAllTimeoutIdRef.current = null;
+          setIsPlaying(false);
+        }, durationMs);
       }
 
-      await AudioManager.setAudioSessionActivity(true);
-      const ctx = getAudioContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-      const chainInput = ensureOutputChain(ctx);
-      const gain = getOrCreateButtonGain(ctx, chainInput, kind);
-      const variants = BUTTON_VARIANTS[kind];
-
-      let buffer: any = null;
-      try {
-        const loopKey = makeSampleKey(params, variants.loop);
-        if (__DEV__) {
-          console.log('[DubSiren] startLoopForButton: loading buffer', {
-            kind,
-            loopKey,
-          });
-        }
-        buffer = await getSampleBuffer(loopKey);
-      } catch (e) {
-        console.warn(`${kind}: loop decode failed`, e);
-        buffer = null;
-      }
-      if (!buffer) {
-        if (__DEV__) {
-          console.warn(
-            `[DubSiren] startLoopForButton(${kind}): no buffer for loop, resetting button state`
-          );
-        }
-        stateRef.current = {
-          ...state,
-          phase: 'idle',
-          loopSource: null,
-        };
-        return;
-      }
-
-      const loopSource = createBufferSource(ctx);
-      loopSource.buffer = buffer;
-      loopSource.loop = true;
-      try {
-        loopSource.connect(gain);
-        loopSource.start();
-        applyFadeIn(ctx, gain);
-        if (__DEV__) {
-          console.log('[DubSiren] startLoopForButton: loop started', {
-            kind,
-          });
-        }
-      } catch (e) {
-        console.warn(`${kind}: loop start failed`, e);
-        stopSource(loopSource);
-        stateRef.current = makeInitialButtonState();
-        return;
-      }
-
-      stateRef.current = {
-        ...state,
-        phase: 'loop',
-        loopSource,
-      };
+      if (__DEV__) console.log('[DubSiren] startMainSample: playing', useAll ? '(main_all once)' : '');
     },
     [ensureOutputChain, getAudioContext]
   );
@@ -552,11 +488,10 @@ export function useDubSiren(): UseDubSirenReturn {
       const gain = getOrCreateButtonGain(ctx, chainInput, kind);
 
       const existing = stateRef.current;
-      stopSource(existing.introSource);
-      stopSource(existing.loopSource);
+      stopSource(existing.allSource);
       stopSource(existing.endSource);
-      if (existing.introTimeoutId) {
-        clearTimeout(existing.introTimeoutId);
+      if (existing.allTimeoutId) {
+        clearTimeout(existing.allTimeoutId);
       }
       if (existing.endTimeoutId) {
         clearTimeout(existing.endTimeoutId);
@@ -566,58 +501,56 @@ export function useDubSiren(): UseDubSirenReturn {
         phase: 'idle',
         baseParams: currentParams,
         isHeld: true,
-        pendingEnd: false,
-        introSource: null,
-        loopSource: null,
+        allSource: null,
         endSource: null,
-        introTimeoutId: null,
+        allTimeoutId: null,
         endTimeoutId: null,
         gainNode: gain,
       };
 
       let buffer: any = null;
       try {
-        const introKey = makeSampleKey(currentParams, variants.intro);
+        const allKey = makeSampleKey(currentParams, variants.all);
         if (__DEV__) {
-          console.log('[DubSiren] beginButtonSequence: loading intro buffer', {
+          console.log('[DubSiren] beginButtonSequence: loading _ALL buffer', {
             kind,
-            introKey,
+            allKey,
           });
         }
-        buffer = await getSampleBuffer(introKey);
+        buffer = await getSampleBuffer(allKey);
       } catch (e) {
-        console.warn(`${kind}: intro decode failed`, e);
+        console.warn(`${kind}: _ALL decode failed`, e);
         buffer = null;
       }
       if (!buffer) {
         if (__DEV__) {
           console.warn(
-            `[DubSiren] beginButtonSequence(${kind}): no buffer for intro, resetting button state`
+            `[DubSiren] beginButtonSequence(${kind}): no buffer for _ALL, resetting button state`
           );
         }
         stateRef.current = makeInitialButtonState();
         return;
       }
 
-      const introSource = createBufferSource(ctx);
-      introSource.buffer = buffer;
-      introSource.loop = false;
+      const allSource = createBufferSource(ctx);
+      allSource.buffer = buffer;
+      allSource.loop = false;
       try {
-        introSource.connect(gain);
+        allSource.connect(gain);
       } catch (e) {
-        console.warn(`${kind}: intro connect failed`, e);
-        stopSource(introSource);
+        console.warn(`${kind}: _ALL connect failed`, e);
+        stopSource(allSource);
         stateRef.current = makeInitialButtonState();
         return;
       }
 
-      const introDurationMs = buffer.duration * 1000;
+      const allDurationMs = Math.ceil(buffer.duration * 1000) + 50;
       const timeoutId = setTimeout(() => {
         const state = stateRef.current;
-        if (state.introSource !== introSource || state.phase !== 'intro') {
+        if (state.allSource !== allSource || state.phase !== 'playing_all') {
           if (__DEV__) {
             console.log(
-              `[DubSiren] intro timeout for ${kind}: state changed (phase=${state.phase}), ignoring`
+              `[DubSiren] _ALL timeout for ${kind}: state changed (phase=${state.phase}), ignoring`
             );
           }
           return;
@@ -625,49 +558,37 @@ export function useDubSiren(): UseDubSirenReturn {
 
         stateRef.current = {
           ...state,
-          introSource: null,
-          introTimeoutId: null,
+          phase: 'idle',
+          allSource: null,
+          allTimeoutId: null,
         };
-
-        if (!state.isHeld || state.pendingEnd) {
-          if (__DEV__) {
-            console.log(
-              `[DubSiren] intro timeout for ${kind}: button not held or pendingEnd, starting END`
-            );
-          }
-          void startEndForButton(kind);
-        } else {
-          if (__DEV__) {
-            console.log(
-              `[DubSiren] intro timeout for ${kind}: button still held, starting LOOP`
-            );
-          }
-          void startLoopForButton(kind);
+        if (__DEV__) {
+          console.log(`[DubSiren] _ALL finished for ${kind}, resetting to idle`);
         }
-      }, introDurationMs);
+      }, allDurationMs);
 
       stateRef.current = {
         ...stateRef.current,
-        phase: 'intro',
-        introSource,
-        introTimeoutId: timeoutId,
+        phase: 'playing_all',
+        allSource,
+        allTimeoutId: timeoutId,
       };
 
       try {
-        introSource.start();
+        allSource.start();
         applyFadeIn(ctx, gain);
         if (__DEV__) {
-          console.log('[DubSiren] beginButtonSequence: intro started', {
+          console.log('[DubSiren] beginButtonSequence: _ALL started', {
             kind,
           });
         }
       } catch (e) {
-        console.warn(`${kind}: intro start failed`, e);
-        stopSource(introSource);
+        console.warn(`${kind}: _ALL start failed`, e);
+        stopSource(allSource);
         stateRef.current = makeInitialButtonState();
       }
     },
-    [ensureOutputChain, getAudioContext, startEndForButton, startLoopForButton]
+    [ensureOutputChain, getAudioContext]
   );
 
   const releaseButtonSequence = useCallback(
@@ -678,30 +599,23 @@ export function useDubSiren(): UseDubSirenReturn {
       if (state.phase === 'idle') {
         state.baseParams = null;
         state.isHeld = false;
-        state.pendingEnd = false;
         return;
       }
 
       state.isHeld = false;
 
-      if (state.phase === 'intro') {
-        state.pendingEnd = true;
-        if (__DEV__) {
-          console.log(
-            `[DubSiren] releaseButtonSequence(${kind}): released during INTRO, will play END after intro`
-          );
+      if (state.phase === 'playing_all') {
+        if (state.allSource) {
+          stopSource(state.allSource);
+          state.allSource = null;
         }
-        return;
-      }
-
-      if (state.phase === 'loop') {
-        if (state.loopSource) {
-          stopSource(state.loopSource);
-          state.loopSource = null;
+        if (state.allTimeoutId) {
+          clearTimeout(state.allTimeoutId);
+          state.allTimeoutId = null;
         }
         if (__DEV__) {
           console.log(
-            `[DubSiren] releaseButtonSequence(${kind}): released during LOOP, starting END`
+            `[DubSiren] releaseButtonSequence(${kind}): released during _ALL, starting END`
           );
         }
         void startEndForButton(kind);
@@ -836,14 +750,13 @@ export function useDubSiren(): UseDubSirenReturn {
     const buttonRefs = [sirenStateRef, toneStateRef];
     buttonRefs.forEach((ref) => {
       const state = ref.current;
-      if (state.introTimeoutId) {
-        clearTimeout(state.introTimeoutId);
+      if (state.allTimeoutId) {
+        clearTimeout(state.allTimeoutId);
       }
       if (state.endTimeoutId) {
         clearTimeout(state.endTimeoutId);
       }
-      stopSource(state.introSource);
-      stopSource(state.loopSource);
+      stopSource(state.allSource);
       stopSource(state.endSource);
       if (state.gainNode) {
         try {

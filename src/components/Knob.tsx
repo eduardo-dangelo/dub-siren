@@ -220,8 +220,8 @@ const styles = StyleSheet.create({
     height: 68,
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: 'rgba(0,0,0,0.3)',
     boxShadow: '0 0 28px 0 rgba(0, 0, 0, 0.6),inset 0 0 8px 0 rgba(175, 175, 175, 0.3)',
+    borderRadius: 7,
   },
   indicator: {
     width: 2,
