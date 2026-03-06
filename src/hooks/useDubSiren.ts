@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AudioContext,
+  AudioManager,
   AudioNode,
   ConvolverNode,
   GainNode,
@@ -36,6 +37,7 @@ interface ButtonPlaybackState {
   loopSource: BufferSourceNode | null;
   endSource: BufferSourceNode | null;
   introTimeoutId: any;
+  endTimeoutId: any;
   gainNode: GainNode | null;
 }
 
@@ -75,6 +77,7 @@ function makeInitialButtonState(): ButtonPlaybackState {
     loopSource: null,
     endSource: null,
     introTimeoutId: null,
+    endTimeoutId: null,
     gainNode: null,
   };
 }
@@ -145,11 +148,33 @@ export function useDubSiren(): UseDubSirenReturn {
   }, []);
 
   const resumeContext = useCallback(async () => {
+    await AudioManager.setAudioSessionActivity(true);
     const ctx = getAudioContext();
     if (ctx.state === 'suspended') {
       await ctx.resume();
     }
   }, [getAudioContext]);
+
+  const resetAudioContext = useCallback(() => {
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+    try {
+      if (typeof ctx.close === 'function' && ctx.state !== 'closed') {
+        void ctx.close();
+      }
+    } catch {
+      // ignore
+    }
+    audioContextRef.current = null;
+    outputGainRef.current = null;
+    delayInputRef.current = null;
+    convolver0Ref.current = null;
+    delayGain0Ref.current = null;
+    mainSourceRef.current = null;
+    setIsPlaying(false);
+    sirenStateRef.current = makeInitialButtonState();
+    toneStateRef.current = makeInitialButtonState();
+  }, []);
 
   const applyFadeIn = useCallback((ctx: AudioContext, gain: GainNode) => {
     const FADE_TIME = 0; // 10ms
@@ -272,6 +297,7 @@ export function useDubSiren(): UseDubSirenReturn {
   const startMainSample = useCallback(
     async (currentParams: DubSirenParams) => {
       if (__DEV__) console.log('[DubSiren] startMainSample', { pitch: currentParams.pitch, mode: currentParams.mode, beat: currentParams.beat });
+      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
       if (ctx.state === 'suspended') {
         await ctx.resume();
@@ -331,6 +357,7 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
+      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
       if (ctx.state === 'suspended') {
         await ctx.resume();
@@ -411,6 +438,7 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
+      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
       if (ctx.state === 'suspended') {
         await ctx.resume();
@@ -461,13 +489,26 @@ export function useDubSiren(): UseDubSirenReturn {
         endSource,
       };
 
-      endSource.onended = () => {
+      // Use duration-based timeout instead of onended - onended can fire early on iOS
+      // and corrupt state. This ensures we cleanup only after the sample has fully played.
+      const endDurationMs = Math.ceil(buffer.duration * 1000) + 150;
+      const endTimeoutId = setTimeout(() => {
         const currentState = stateRef.current;
-        if (currentState.endSource !== endSource) {
-          return;
+        if (currentState.endSource !== endSource) return;
+        try {
+          endSource.disconnect();
+        } catch {
+          // ignore
         }
-        stopSource(endSource);
         stateRef.current = makeInitialButtonState();
+        if (!mainSourceRef.current) {
+          resetAudioContext();
+        }
+      }, endDurationMs);
+
+      stateRef.current = {
+        ...stateRef.current,
+        endTimeoutId,
       };
 
       try {
@@ -484,7 +525,7 @@ export function useDubSiren(): UseDubSirenReturn {
         stateRef.current = makeInitialButtonState();
       }
     },
-    [ensureOutputChain, getAudioContext]
+    [ensureOutputChain, getAudioContext, resetAudioContext]
   );
 
   const beginButtonSequence = useCallback(
@@ -500,6 +541,7 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
+      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
       if (ctx.state === 'suspended') {
         await ctx.resume();
@@ -516,6 +558,9 @@ export function useDubSiren(): UseDubSirenReturn {
       if (existing.introTimeoutId) {
         clearTimeout(existing.introTimeoutId);
       }
+      if (existing.endTimeoutId) {
+        clearTimeout(existing.endTimeoutId);
+      }
 
       stateRef.current = {
         phase: 'idle',
@@ -526,6 +571,7 @@ export function useDubSiren(): UseDubSirenReturn {
         loopSource: null,
         endSource: null,
         introTimeoutId: null,
+        endTimeoutId: null,
         gainNode: gain,
       };
 
@@ -792,6 +838,9 @@ export function useDubSiren(): UseDubSirenReturn {
       const state = ref.current;
       if (state.introTimeoutId) {
         clearTimeout(state.introTimeoutId);
+      }
+      if (state.endTimeoutId) {
+        clearTimeout(state.endTimeoutId);
       }
       stopSource(state.introSource);
       stopSource(state.loopSource);
