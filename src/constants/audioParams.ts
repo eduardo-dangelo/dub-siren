@@ -13,12 +13,12 @@ export interface DelayParams {
 }
 
 export const DEFAULT_DELAY_PARAMS: DelayParams = {
-  enabled: false,
-  time: 0.65,
-  feedback: 0.28,
-  dryLevel: 0.65,
-  wetLevel: 0.36,
-  echoCount: 10,
+  enabled: true,
+  time: 0.4, // 1/8 note @ 120 BPM (common dub techno)
+  feedback: 0.4, // 40% - within 30-60% dub range
+  dryLevel: 0.6,
+  wetLevel: 0.3,
+  echoCount: 6, // Siren-appropriate (fewer repetitions)
 };
 
 // Legacy exports for backward compatibility
