@@ -106,7 +106,7 @@ export default function App() {
               label="VOL"
               type="volume"
               value={params.volume}
-              maxValue={1}
+              maxValue={4}
               minValue={0}
               continuous
               onValueChange={(v) => setParams({ volume: v })}

@@ -81,7 +81,7 @@ export interface DubSirenParams {
   pitch: number; // 0-3
   mode: number; // 0-3
   beat: number; // 0-3 (0 = OFF)
-  volume: number; // 0-1
+  volume: number; // 0-2 (1 = unity, 2 = 2x louder)
 }
 
 export interface UseDubSirenReturn {
