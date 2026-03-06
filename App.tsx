@@ -1,11 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useRef } from 'react';
-import { ImageBackground, Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AudioManager } from 'react-native-audio-api';
 import { Knob } from './src/components/Knob';
 import { PedalEnclosure } from './src/components/PedalEnclosure';
 import { PowerLed } from './src/components/PowerLed';
+import { SettingsDrawer } from './src/components/SettingsDrawer';
 import { SirenButton } from './src/components/SirenButton';
 import { ToggleSwitch } from './src/components/ToggleSwitch';
 import { useDubSiren } from './src/hooks/useDubSiren';
@@ -27,6 +28,8 @@ export default function App() {
   const {
     params,
     setParams,
+    delayParams,
+    setDelayParams,
     isPlaying,
     trigger,
     momentaryPress,
@@ -38,6 +41,8 @@ export default function App() {
     resumeContext,
   } = useDubSiren();
 
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const hasResumedRef = useRef(false);
   const handleFirstInteraction = useCallback(async () => {
     if (!hasResumedRef.current) {
@@ -45,6 +50,11 @@ export default function App() {
       await resumeContext();
     }
   }, [resumeContext]);
+
+  const handleSettingsPress = useCallback(async () => {
+    await handleFirstInteraction();
+    setIsSettingsOpen((prev) => !prev);
+  }, [handleFirstInteraction]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -56,6 +66,13 @@ export default function App() {
       >
         <View style={styles.overlay} pointerEvents="none" />
         <StatusBar style="dark" />
+        <Pressable
+          style={styles.settingsButton}
+          onPress={handleSettingsPress}
+          accessibilityLabel="Settings"
+        >
+          <Text style={styles.settingsIcon}>⚙</Text>
+        </Pressable>
         <PedalEnclosure>
           <View style={styles.landscapeLayout}>
             <View style={styles.rightColumn}>
@@ -123,6 +140,12 @@ export default function App() {
           <CableJack variant="input" orientation="bottom" />
           <CableJack variant="power" orientation="bottom" />
         </View>
+        <SettingsDrawer
+          visible={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          delayParams={delayParams}
+          onChangeDelayParams={setDelayParams}
+        />
       </ImageBackground>
     </Pressable>
     </GestureHandlerRootView>
@@ -174,6 +197,22 @@ const styles = StyleSheet.create({
     transform: [{ translateY: -19 }],
     flexDirection: 'column',
     gap: 10,
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 32,
+    right: 24,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsIcon: {
+    fontSize: 24,
+    color: pedalColors.toggleChrome,
   },
   jackBottom: {
     position: 'absolute',

@@ -12,6 +12,8 @@ interface KnobProps {
   value: number;
   maxValue: number;
   onValueChange: (value: number) => void;
+  /** Called when the user releases the knob (or taps for discrete). Use for applying changes only on release. */
+  onValueCommit?: (value: number) => void;
   labels?: string[]; // e.g. ['1','2','3','4'] or ['OFF','1','2','3']
   verticalLabel?: boolean;
   continuous?: boolean;
@@ -38,6 +40,7 @@ export function Knob({
   value,
   maxValue,
   onValueChange,
+  onValueCommit,
   labels,
   verticalLabel = false,
   continuous = false,
@@ -52,6 +55,7 @@ export function Knob({
   valueRef.current = value;
   const startValueRef = useRef(value);
   const lastReportedValueRef = useRef(value);
+  const lastReportedContinuousRef = useRef(value);
 
   const reportValueDiscrete = useCallback(
     (newValue: number) => {
@@ -68,16 +72,25 @@ export function Knob({
   const reportValueContinuous = useCallback(
     (newValue: number) => {
       const clamped = clamp(newValue, minValue, maxValue);
+      lastReportedContinuousRef.current = clamped;
       onValueChange(clamped);
     },
     [minValue, maxValue, onValueChange]
+  );
+
+  const handleCommit = useCallback(
+    (finalValue: number) => {
+      onValueCommit?.(finalValue);
+    },
+    [onValueCommit]
   );
 
   const handleTap = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const next = (value + 1) % (maxValue + 1);
     onValueChange(next);
-  }, [value, maxValue, onValueChange]);
+    onValueCommit?.(next);
+  }, [value, maxValue, onValueChange, onValueCommit]);
 
   const gesture = useMemo(() => {
     if (continuous) {
@@ -92,6 +105,9 @@ export function Knob({
           const delta = effectiveDelta / SENSITIVITY_CONTINUOUS;
           const newValue = startValueRef.current + delta * valueRange;
           reportValueContinuous(newValue);
+        })
+        .onEnd(() => {
+          handleCommit(lastReportedContinuousRef.current);
         });
     }
 
@@ -110,10 +126,13 @@ export function Knob({
         const steps = Math.round(effectiveDelta / SENSITIVITY);
         const newValue = startValueRef.current + steps;
         reportValueDiscrete(newValue);
+      })
+      .onEnd(() => {
+        handleCommit(lastReportedValueRef.current);
       });
 
     return Gesture.Exclusive(tap, pan);
-  }, [continuous, valueRange, handleTap, reportValueDiscrete, reportValueContinuous]);
+  }, [continuous, valueRange, handleTap, handleCommit, reportValueDiscrete, reportValueContinuous]);
 
   const displayLabel = continuous
     ? `${Math.round(value * 9)}`

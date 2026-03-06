@@ -5,7 +5,7 @@ import {
   ConvolverNode,
   GainNode,
 } from 'react-native-audio-api';
-import { DELAY_ENABLED } from '../constants/audioParams';
+import { DEFAULT_DELAY_PARAMS, type DelayParams } from '../constants/audioParams';
 import { createDelayImpulseResponse } from '../utils/delayImpulse';
 import { getSampleBuffer, makeSampleKey, type SampleVariant } from '../audio/sampleMap';
 
@@ -23,11 +23,20 @@ type ButtonPhase = 'idle' | 'intro' | 'loop' | 'ending';
 
 interface ButtonPlaybackState {
   phase: ButtonPhase;
+  /**
+   * Snapshot of the params at the moment the button
+   * sequence begins. We use this so that BEAT/MODE/PITCH
+   * changes while the intro sample is playing do not
+   * accidentally cancel the loop/end stages.
+   */
+  baseParams: DubSirenParams | null;
   isHeld: boolean;
   pendingEnd: boolean;
   introSource: BufferSourceNode | null;
   loopSource: BufferSourceNode | null;
   endSource: BufferSourceNode | null;
+  introTimeoutId: any;
+  gainNode: GainNode | null;
 }
 
 const BUTTON_VARIANTS: Record<
@@ -59,11 +68,14 @@ function stopSource(node: BufferSourceNode | null) {
 function makeInitialButtonState(): ButtonPlaybackState {
   return {
     phase: 'idle',
+    baseParams: null,
     isHeld: false,
     pendingEnd: false,
     introSource: null,
     loopSource: null,
     endSource: null,
+    introTimeoutId: null,
+    gainNode: null,
   };
 }
 
@@ -81,6 +93,8 @@ export interface DubSirenParams {
 export interface UseDubSirenReturn {
   params: DubSirenParams;
   setParams: (params: Partial<DubSirenParams>) => void;
+  delayParams: DelayParams;
+  setDelayParams: (updater: (prev: DelayParams) => DelayParams) => void;
   isPlaying: boolean;
   trigger: () => void;
   momentaryPress: () => void;
@@ -100,18 +114,27 @@ export function useDubSiren(): UseDubSirenReturn {
     volume: 0.75,
   });
   const [isPlaying, setIsPlaying] = useState(false);
+  const [delayParams, setDelayParamsState] = useState<DelayParams>(DEFAULT_DELAY_PARAMS);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const outputGainRef = useRef<GainNode | null>(null);
-  const convolverRef = useRef<ConvolverNode | null>(null);
+  const delayInputRef = useRef<GainNode | null>(null);
+  const convolver0Ref = useRef<ConvolverNode | null>(null);
+  const delayGain0Ref = useRef<GainNode | null>(null);
   const mainSourceRef = useRef<BufferSourceNode | null>(null);
   const sirenStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const toneStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const paramsRef = useRef(params);
   paramsRef.current = params;
+  const delayParamsRef = useRef(delayParams);
+  delayParamsRef.current = delayParams;
 
   const setParams = useCallback((updates: Partial<DubSirenParams>) => {
     setParamsState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const setDelayParams = useCallback((updater: (prev: DelayParams) => DelayParams) => {
+    setDelayParamsState(updater);
   }, []);
 
   const getAudioContext = useCallback(() => {
@@ -128,10 +151,55 @@ export function useDubSiren(): UseDubSirenReturn {
     }
   }, [getAudioContext]);
 
+  const applyFadeIn = useCallback((ctx: AudioContext, gain: GainNode) => {
+    const FADE_TIME = 0; // 10ms
+    try {
+      const param: any = (gain as any).gain;
+      const now = (ctx as any).currentTime ?? 0;
+      if (
+        param &&
+        typeof param.setValueAtTime === 'function' &&
+        typeof param.linearRampToValueAtTime === 'function'
+      ) {
+        param.cancelScheduledValues(now);
+        param.setValueAtTime(0, now);
+        param.linearRampToValueAtTime(1, now + FADE_TIME);
+      } else {
+        // Fallback: just set to 1 without a ramp
+        param.value = 1;
+      }
+    } catch {
+      // ignore – if scheduling fails, we still let audio play
+    }
+  }, []);
+
+  const getOrCreateButtonGain = useCallback(
+    (ctx: AudioContext, chainInput: AudioNode, kind: ButtonKind): GainNode => {
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const state = stateRef.current;
+      if (state.gainNode) {
+        return state.gainNode;
+      }
+      const gain = ctx.createGain();
+      // Default to full volume; specific starts can apply a fade-in.
+      gain.gain.value = 1;
+      try {
+        gain.connect(chainInput);
+      } catch {
+        // ignore connect problems; if this fails, behavior falls back to direct-connect
+      }
+      stateRef.current = {
+        ...state,
+        gainNode: gain,
+      };
+      return gain;
+    },
+    []
+  );
+
   const ensureOutputChain = useCallback(
     (ctx: AudioContext): AudioNode => {
       let output = outputGainRef.current;
-      let convolver = convolverRef.current;
 
       if (!output) {
         output = ctx.createGain();
@@ -142,25 +210,50 @@ export function useDubSiren(): UseDubSirenReturn {
         output.gain.value = paramsRef.current.volume;
       }
 
-      if (DELAY_ENABLED) {
-        if (!convolver) {
-          convolver = ctx.createConvolver();
-          convolver.buffer = createDelayImpulseResponse(ctx);
-          convolver.normalize = false;
-          convolver.connect(output);
-          convolverRef.current = convolver;
+      if (delayParamsRef.current.enabled) {
+        let delayInput = delayInputRef.current;
+        if (!delayInput) {
+          delayInput = ctx.createGain();
+          delayInput.gain.value = 1;
+          delayInputRef.current = delayInput;
         }
-        return convolver;
+
+        let conv0 = convolver0Ref.current;
+        let gain0 = delayGain0Ref.current;
+        if (!conv0 || !gain0) {
+          conv0 = ctx.createConvolver();
+          conv0.buffer = createDelayImpulseResponse(ctx, delayParamsRef.current);
+          conv0.normalize = false;
+          gain0 = ctx.createGain();
+          gain0.gain.value = 1;
+          delayInput.connect(conv0);
+          conv0.connect(gain0);
+          gain0.connect(output);
+          convolver0Ref.current = conv0;
+          delayGain0Ref.current = gain0;
+        }
+
+        return delayInput;
       }
 
-      if (convolver) {
-        try {
-          convolver.disconnect();
-        } catch {
-          // ignore
+      // Delay disabled: disconnect and clear delay chain
+      const toDisconnect = [
+        delayInputRef.current,
+        convolver0Ref.current,
+        delayGain0Ref.current,
+      ];
+      toDisconnect.forEach((node) => {
+        if (node) {
+          try {
+            node.disconnect();
+          } catch {
+            // ignore
+          }
         }
-        convolverRef.current = null;
-      }
+      });
+      delayInputRef.current = null;
+      convolver0Ref.current = null;
+      delayGain0Ref.current = null;
 
       return output;
     },
@@ -224,8 +317,17 @@ export function useDubSiren(): UseDubSirenReturn {
 
   const startLoopForButton = useCallback(
     async (kind: ButtonKind) => {
-      const currentParams = paramsRef.current;
-      if (currentParams.beat !== 3 || currentParams.mode !== 0) {
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const state = stateRef.current;
+      const params = state.baseParams ?? paramsRef.current;
+
+      if (params.beat !== 3 || params.mode !== 0) {
+        if (__DEV__) {
+          console.log(
+            `[DubSiren] startLoopForButton(${kind}): params no longer match BEAT_4/MODE_1, skipping loop`,
+            params
+          );
+        }
         return;
       }
 
@@ -234,19 +336,29 @@ export function useDubSiren(): UseDubSirenReturn {
         await ctx.resume();
       }
       const chainInput = ensureOutputChain(ctx);
+      const gain = getOrCreateButtonGain(ctx, chainInput, kind);
       const variants = BUTTON_VARIANTS[kind];
-      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
-      const state = stateRef.current;
 
       let buffer: any = null;
       try {
-        const loopKey = makeSampleKey(currentParams, variants.loop);
+        const loopKey = makeSampleKey(params, variants.loop);
+        if (__DEV__) {
+          console.log('[DubSiren] startLoopForButton: loading buffer', {
+            kind,
+            loopKey,
+          });
+        }
         buffer = await getSampleBuffer(loopKey);
       } catch (e) {
         console.warn(`${kind}: loop decode failed`, e);
         buffer = null;
       }
       if (!buffer) {
+        if (__DEV__) {
+          console.warn(
+            `[DubSiren] startLoopForButton(${kind}): no buffer for loop, resetting button state`
+          );
+        }
         stateRef.current = {
           ...state,
           phase: 'idle',
@@ -259,8 +371,14 @@ export function useDubSiren(): UseDubSirenReturn {
       loopSource.buffer = buffer;
       loopSource.loop = true;
       try {
-        loopSource.connect(chainInput);
+        loopSource.connect(gain);
         loopSource.start();
+        applyFadeIn(ctx, gain);
+        if (__DEV__) {
+          console.log('[DubSiren] startLoopForButton: loop started', {
+            kind,
+          });
+        }
       } catch (e) {
         console.warn(`${kind}: loop start failed`, e);
         stopSource(loopSource);
@@ -279,8 +397,17 @@ export function useDubSiren(): UseDubSirenReturn {
 
   const startEndForButton = useCallback(
     async (kind: ButtonKind) => {
-      const currentParams = paramsRef.current;
-      if (currentParams.beat !== 3 || currentParams.mode !== 0) {
+      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const state = stateRef.current;
+      const params = state.baseParams ?? paramsRef.current;
+
+      if (params.beat !== 3 || params.mode !== 0) {
+        if (__DEV__) {
+          console.log(
+            `[DubSiren] startEndForButton(${kind}): params no longer match BEAT_4/MODE_1, skipping end`,
+            params
+          );
+        }
         return;
       }
 
@@ -289,19 +416,29 @@ export function useDubSiren(): UseDubSirenReturn {
         await ctx.resume();
       }
       const chainInput = ensureOutputChain(ctx);
+      const gain = getOrCreateButtonGain(ctx, chainInput, kind);
       const variants = BUTTON_VARIANTS[kind];
-      const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
-      const state = stateRef.current;
 
       let buffer: any = null;
       try {
-        const endKey = makeSampleKey(currentParams, variants.end);
+        const endKey = makeSampleKey(params, variants.end);
+        if (__DEV__) {
+          console.log('[DubSiren] startEndForButton: loading buffer', {
+            kind,
+            endKey,
+          });
+        }
         buffer = await getSampleBuffer(endKey);
       } catch (e) {
         console.warn(`${kind}: end decode failed`, e);
         buffer = null;
       }
       if (!buffer) {
+        if (__DEV__) {
+          console.warn(
+            `[DubSiren] startEndForButton(${kind}): no buffer for end, resetting button state`
+          );
+        }
         stateRef.current = makeInitialButtonState();
         return;
       }
@@ -310,7 +447,7 @@ export function useDubSiren(): UseDubSirenReturn {
       endSource.buffer = buffer;
       endSource.loop = false;
       try {
-        endSource.connect(chainInput);
+        endSource.connect(gain);
       } catch (e) {
         console.warn(`${kind}: end connect failed`, e);
         stopSource(endSource);
@@ -335,6 +472,12 @@ export function useDubSiren(): UseDubSirenReturn {
 
       try {
         endSource.start();
+        applyFadeIn(ctx, gain);
+        if (__DEV__) {
+          console.log('[DubSiren] startEndForButton: end started', {
+            kind,
+          });
+        }
       } catch (e) {
         console.warn(`${kind}: end start failed`, e);
         stopSource(endSource);
@@ -348,6 +491,12 @@ export function useDubSiren(): UseDubSirenReturn {
     async (kind: ButtonKind) => {
       const currentParams = paramsRef.current;
       if (currentParams.beat !== 3 || currentParams.mode !== 0) {
+        if (__DEV__) {
+          console.log(
+            `[DubSiren] beginButtonSequence(${kind}): ignoring press because params are not BEAT_4/MODE_1`,
+            currentParams
+          );
+        }
         return;
       }
 
@@ -358,30 +507,48 @@ export function useDubSiren(): UseDubSirenReturn {
       const chainInput = ensureOutputChain(ctx);
       const variants = BUTTON_VARIANTS[kind];
       const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const gain = getOrCreateButtonGain(ctx, chainInput, kind);
 
       const existing = stateRef.current;
       stopSource(existing.introSource);
       stopSource(existing.loopSource);
       stopSource(existing.endSource);
+      if (existing.introTimeoutId) {
+        clearTimeout(existing.introTimeoutId);
+      }
 
       stateRef.current = {
         phase: 'idle',
+        baseParams: currentParams,
         isHeld: true,
         pendingEnd: false,
         introSource: null,
         loopSource: null,
         endSource: null,
+        introTimeoutId: null,
+        gainNode: gain,
       };
 
       let buffer: any = null;
       try {
         const introKey = makeSampleKey(currentParams, variants.intro);
+        if (__DEV__) {
+          console.log('[DubSiren] beginButtonSequence: loading intro buffer', {
+            kind,
+            introKey,
+          });
+        }
         buffer = await getSampleBuffer(introKey);
       } catch (e) {
         console.warn(`${kind}: intro decode failed`, e);
         buffer = null;
       }
       if (!buffer) {
+        if (__DEV__) {
+          console.warn(
+            `[DubSiren] beginButtonSequence(${kind}): no buffer for intro, resetting button state`
+          );
+        }
         stateRef.current = makeInitialButtonState();
         return;
       }
@@ -390,7 +557,7 @@ export function useDubSiren(): UseDubSirenReturn {
       introSource.buffer = buffer;
       introSource.loop = false;
       try {
-        introSource.connect(chainInput);
+        introSource.connect(gain);
       } catch (e) {
         console.warn(`${kind}: intro connect failed`, e);
         stopSource(introSource);
@@ -398,32 +565,56 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
-      stateRef.current = {
-        ...stateRef.current,
-        phase: 'intro',
-        introSource,
-      };
-
-      introSource.onended = () => {
+      const introDurationMs = buffer.duration * 1000;
+      const timeoutId = setTimeout(() => {
         const state = stateRef.current;
-        if (state.introSource !== introSource) {
+        if (state.introSource !== introSource || state.phase !== 'intro') {
+          if (__DEV__) {
+            console.log(
+              `[DubSiren] intro timeout for ${kind}: state changed (phase=${state.phase}), ignoring`
+            );
+          }
           return;
         }
 
         stateRef.current = {
           ...state,
           introSource: null,
+          introTimeoutId: null,
         };
 
         if (!state.isHeld || state.pendingEnd) {
+          if (__DEV__) {
+            console.log(
+              `[DubSiren] intro timeout for ${kind}: button not held or pendingEnd, starting END`
+            );
+          }
           void startEndForButton(kind);
         } else {
+          if (__DEV__) {
+            console.log(
+              `[DubSiren] intro timeout for ${kind}: button still held, starting LOOP`
+            );
+          }
           void startLoopForButton(kind);
         }
+      }, introDurationMs);
+
+      stateRef.current = {
+        ...stateRef.current,
+        phase: 'intro',
+        introSource,
+        introTimeoutId: timeoutId,
       };
 
       try {
         introSource.start();
+        applyFadeIn(ctx, gain);
+        if (__DEV__) {
+          console.log('[DubSiren] beginButtonSequence: intro started', {
+            kind,
+          });
+        }
       } catch (e) {
         console.warn(`${kind}: intro start failed`, e);
         stopSource(introSource);
@@ -439,6 +630,7 @@ export function useDubSiren(): UseDubSirenReturn {
       const state = stateRef.current;
 
       if (state.phase === 'idle') {
+        state.baseParams = null;
         state.isHeld = false;
         state.pendingEnd = false;
         return;
@@ -448,6 +640,11 @@ export function useDubSiren(): UseDubSirenReturn {
 
       if (state.phase === 'intro') {
         state.pendingEnd = true;
+        if (__DEV__) {
+          console.log(
+            `[DubSiren] releaseButtonSequence(${kind}): released during INTRO, will play END after intro`
+          );
+        }
         return;
       }
 
@@ -455,6 +652,11 @@ export function useDubSiren(): UseDubSirenReturn {
         if (state.loopSource) {
           stopSource(state.loopSource);
           state.loopSource = null;
+        }
+        if (__DEV__) {
+          console.log(
+            `[DubSiren] releaseButtonSequence(${kind}): released during LOOP, starting END`
+          );
         }
         void startEndForButton(kind);
       }
@@ -494,6 +696,70 @@ export function useDubSiren(): UseDubSirenReturn {
     }
   }, [params.volume]);
 
+  // React to delay param changes: swap single convolver in place, or reconnect chain when toggled
+  useEffect(() => {
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+
+    const output = outputGainRef.current;
+    const delayInput = delayInputRef.current;
+    const conv0 = convolver0Ref.current;
+    const gain0 = delayGain0Ref.current;
+
+    // Delay disabled and no delay chain: already correct, nothing to do
+    if (!delayParams.enabled && !delayInput) {
+      return;
+    }
+
+    // Delay enabled with existing chain: swap convolver with new params (single path only)
+    if (delayParams.enabled && delayInput && conv0 && gain0 && output) {
+      try {
+        const newConv = ctx.createConvolver();
+        newConv.buffer = createDelayImpulseResponse(ctx, delayParams);
+        newConv.normalize = false;
+        // Disconnect old path first to avoid any parallel summing
+        conv0.disconnect();
+        try {
+          delayInput.disconnect(conv0);
+        } catch {
+          // ignore if disconnect(dest) not supported
+        }
+        // Connect new path
+        delayInput.connect(newConv);
+        newConv.connect(gain0);
+        convolver0Ref.current = newConv;
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    // Chain structure changed: ensure correct chain, then reconnect all active sources
+    const newChainInput = ensureOutputChain(ctx);
+
+    const mainSource = mainSourceRef.current;
+    if (mainSource) {
+      try {
+        mainSource.disconnect();
+        mainSource.connect(newChainInput);
+      } catch {
+        // ignore
+      }
+    }
+
+    for (const stateRef of [sirenStateRef, toneStateRef]) {
+      const gain = stateRef.current.gainNode;
+      if (gain) {
+        try {
+          gain.disconnect();
+          gain.connect(newChainInput);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [delayParams, ensureOutputChain]);
+
   const sirenPress = useCallback(() => {
     void beginButtonSequence('siren');
   }, [beginButtonSequence]);
@@ -515,18 +781,39 @@ export function useDubSiren(): UseDubSirenReturn {
     const buttonRefs = [sirenStateRef, toneStateRef];
     buttonRefs.forEach((ref) => {
       const state = ref.current;
+      if (state.introTimeoutId) {
+        clearTimeout(state.introTimeoutId);
+      }
       stopSource(state.introSource);
       stopSource(state.loopSource);
       stopSource(state.endSource);
+      if (state.gainNode) {
+        try {
+          state.gainNode.disconnect();
+        } catch {
+          // ignore
+        }
+      }
       ref.current = makeInitialButtonState();
     });
-    try {
-      convolverRef.current?.disconnect();
-      outputGainRef.current?.disconnect();
-    } catch {
-      // ignore
-    }
-    convolverRef.current = null;
+    const toDisconnect = [
+      delayInputRef.current,
+      convolver0Ref.current,
+      delayGain0Ref.current,
+      outputGainRef.current,
+    ];
+    toDisconnect.forEach((node) => {
+      if (node) {
+        try {
+          node.disconnect();
+        } catch {
+          // ignore
+        }
+      }
+    });
+    delayInputRef.current = null;
+    convolver0Ref.current = null;
+    delayGain0Ref.current = null;
     outputGainRef.current = null;
   }, [stopMainSample]);
 
@@ -539,6 +826,8 @@ export function useDubSiren(): UseDubSirenReturn {
   return {
     params,
     setParams,
+    delayParams,
+    setDelayParams,
     isPlaying,
     trigger,
     momentaryPress,
