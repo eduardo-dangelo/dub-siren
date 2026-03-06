@@ -696,6 +696,15 @@ export function useDubSiren(): UseDubSirenReturn {
     }
   }, [params.volume]);
 
+  // Restart main sample when pitch/mode/beat change during playback
+  useEffect(() => {
+    if (!mainSourceRef.current) return;
+    stopMainSample();
+    startMainSample(paramsRef.current).catch((e) => {
+      if (__DEV__) console.warn('[DubSiren] param-change restart failed', e);
+    });
+  }, [params.pitch, params.mode, params.beat, stopMainSample, startMainSample]);
+
   // React to delay param changes: swap single convolver in place, or reconnect chain when toggled
   useEffect(() => {
     const ctx = audioContextRef.current;
