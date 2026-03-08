@@ -51,7 +51,7 @@ export function Knob({
   const color = KNOB_COLORS[type];
   const gradientColors = useMemo(() => {
     const s = color;
-    const s1 = lighten(s, 13);
+    const s1 = lighten(s, 9);
     const s2 = lighten(s, 2.5);
     const s4 = darken(s, 10);
     return [s2, s2, s4, s, s, s1, s2, s2] as const;
@@ -168,8 +168,16 @@ export function Knob({
               <LinearGradient
                 colors={[...gradientColors]}
                 locations={[0, 0.1, 0.308, 0.32, 0.68, 0.692, 0.9, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                start={
+                  rotation >= -25 && rotation < 180
+                    ? { x: 1, y: 0 }
+                    : { x: 0, y: 0 }
+                }
+                end={
+                  rotation >= -25 && rotation < 180
+                    ? { x: 0, y: 0 }
+                    : { x: 1, y: 0 }
+                }
                 style={styles.knobGradient}
               />
               <View style={styles.indicator} />

@@ -51,10 +51,10 @@ export function PowerLed({ label, isOn, pulsePeriodMs, verticalLabel = false }: 
       <Text style={[styles.label, verticalLabel && styles.labelVertical]}>{label}</Text>
       {showPulse ? (
         <Animated.View
-          style={[styles.led, { backgroundColor: ledColor, opacity: pulseValue }]}
+          style={[styles.led, { backgroundColor: ledColor, opacity: pulseValue }, isOn && styles.ledGlow]}
         />
       ) : (
-        <View style={[styles.led, { backgroundColor: ledColor }]} />
+        <View style={[styles.led, { backgroundColor: ledColor }, isOn && styles.ledGlow]} />
       )}
     </View>
   );
@@ -87,5 +87,11 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 1,
     borderColor: '#222',
+  },
+  ledGlow: {
+    shadowColor: pedalColors.powerLedOn,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
   },
 });

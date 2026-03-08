@@ -40,7 +40,7 @@ interface ButtonPlaybackState {
 }
 
 /** Power LED pulse period (ms) per beat index (0–3): beat 0 = 1s, 1 = 0.5s, 2 = 0.25s, 3 = 0.25s. */
-const BEAT_PULSE_MS: Record<number, number> = { 0: 600, 1: 300, 2: 150, 3: 1250 };
+const BEAT_PULSE_MS: Record<number, number> = { 0: 600, 1: 300, 2: 150, 3: 3000 };
 
 const BUTTON_VARIANTS: Record<ButtonKind, { all: SampleVariant; end: SampleVariant }> = {
   siren: {
@@ -303,6 +303,16 @@ export function useDubSiren(): UseDubSirenReturn {
     setIsPlaying(false);
   }, []);
 
+  const setPlayingFalseIfNothingElse = useCallback(() => {
+    if (
+      !mainSourceRef.current &&
+      sirenStateRef.current.phase === 'idle' &&
+      toneStateRef.current.phase === 'idle'
+    ) {
+      setIsPlaying(false);
+    }
+  }, []);
+
   const startMainSample = useCallback(
     async (currentParams: DubSirenParams) => {
       if (__DEV__) console.log('[DubSiren] startMainSample', { pitch: currentParams.pitch, mode: currentParams.mode, beat: currentParams.beat });
@@ -446,6 +456,7 @@ export function useDubSiren(): UseDubSirenReturn {
           // ignore
         }
         stateRef.current = makeInitialButtonState();
+        setPlayingFalseIfNothingElse();
         if (!mainSourceRef.current) {
           resetAudioContext();
         }
@@ -470,7 +481,7 @@ export function useDubSiren(): UseDubSirenReturn {
         stateRef.current = makeInitialButtonState();
       }
     },
-    [ensureOutputChain, getAudioContext, resetAudioContext]
+    [ensureOutputChain, getAudioContext, resetAudioContext, setPlayingFalseIfNothingElse]
   );
 
   const beginButtonSequence = useCallback(
@@ -571,6 +582,7 @@ export function useDubSiren(): UseDubSirenReturn {
           allSource: null,
           allTimeoutId: null,
         };
+        setPlayingFalseIfNothingElse();
         if (__DEV__) {
           console.log(`[DubSiren] _ALL finished for ${kind}, resetting to idle`);
         }
@@ -586,6 +598,7 @@ export function useDubSiren(): UseDubSirenReturn {
       try {
         allSource.start();
         applyFadeIn(ctx, gain);
+        setIsPlaying(true);
         if (__DEV__) {
           console.log('[DubSiren] beginButtonSequence: _ALL started', {
             kind,
@@ -597,7 +610,7 @@ export function useDubSiren(): UseDubSirenReturn {
         stateRef.current = makeInitialButtonState();
       }
     },
-    [ensureOutputChain, getAudioContext]
+    [ensureOutputChain, getAudioContext, setPlayingFalseIfNothingElse]
   );
 
   const releaseButtonSequence = useCallback(

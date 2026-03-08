@@ -55,10 +55,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#555',
+    backgroundColor: '#333',
     justifyContent: 'center',
     paddingHorizontal: 2,
-    // boxShadow: 'inset 0 3px 6px 0 rgba(0, 0, 0, 1)',
+    boxShadow: '11px 11px 22px rgba(0, 0, 0, 0.5), -11px -11px 22px rgba(255, 255, 255, 0.2), inset 1px 1px 0 rgba(0, 0, 0, 0.2)',
   },
   thumb: {
     width: 18,
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 2,
-    boxShadow: '3px 6px 14px 0 rgba(0, 0, 0, 1)',
+    boxShadow: 'inset 2px 2px 4px rgba(255, 255, 255, 0.5 ), inset -2px -2px 4px rgba(0, 0, 0, 0.5)',
     zIndex: 10,
   },
 });
