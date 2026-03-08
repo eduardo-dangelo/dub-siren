@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { pedalColors } from '../theme/pedalColors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface SirenButtonProps {
   label: string;
@@ -25,6 +26,13 @@ export function SirenButton({ label, onPressIn, onPressOut, verticalLabel = fals
       ]}
     >
       {!verticalLabel && <Text style={styles.label}>{label}</Text>}
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.2)', 'rgba(0,0,0,0.2)']}
+        locations={[0, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.buttonGradient}
+      />
     </Pressable>
   );
 
@@ -48,20 +56,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  buttonGradient: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 60,
+    height: 60,
+    borderRadius: 29,
+    // boxShadow: 'inset 1px 1px 0 rgba(255, 255, 255, 0.2), inset -1px -1px 0 rgba(0, 0, 0, 0.2)',
+  },
   button: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     backgroundColor: pedalColors.buttonBlack,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#333',
-    boxShadow: '-1px 2px 6px 0 rgba(0, 0, 0, 0.2),inset 0 3px 6px 0 rgba(181, 181, 181, 0.1)',
+    borderWidth: 3,
+    borderColor: '#000',
+    boxShadow: '11px 11px 22px rgba(0, 0, 0, 0.3), -11px -11px 22px rgba(255, 255, 255, 0.3), inset 1px 1px 0 rgba(255, 255, 255, 0.2), inset -1px -1px 0 rgba(0, 0, 0, 0.2)',
   },
   buttonPressed: {
-    // backgroundColor: '#333',
-    boxShadow: 'none',
+    boxShadow: '11px 11px 22px rgba(0, 0, 0, 0.3), -11px -11px 22px rgba(255, 255, 255, 0.3), inset -1px -1px 0 rgba(0, 0, 0, 0.8), inset 1px 1px 0 rgba(0, 0, 0, 0.8)',
+    paddingTop:1,
+
   },
   label: {
     marginBottom: 4,

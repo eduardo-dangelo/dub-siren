@@ -2,7 +2,9 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { pedalColors } from '../theme/pedalColors';
+import { darken, lighten } from '../theme/colorUtils';
 
 export type KnobType = 'pitch' | 'mode' | 'beat' | 'volume';
 
@@ -47,10 +49,22 @@ export function Knob({
   minValue = 0,
 }: KnobProps) {
   const color = KNOB_COLORS[type];
+  const gradientColors = useMemo(() => {
+    const s = color;
+    const s1 = lighten(s, 13);
+    const s2 = lighten(s, 2.5);
+    const s4 = darken(s, 10);
+    return [s2, s2, s4, s, s, s1, s2, s2] as const;
+  }, [color]);
   const valueRange = maxValue - minValue;
-  const rotation = valueRange > 0
-    ? ((value - minValue) / valueRange) * 270 - 135
-    : -135;
+  const rotation =
+    type === 'pitch' || type === 'mode' || type === 'beat'
+      ? valueRange > 0
+        ? ((value - minValue) / valueRange) * 90
+        : 0
+      : valueRange > 0
+        ? ((value - minValue) / valueRange) * 270 - 135
+        : -135;
   const valueRef = useRef(value);
   valueRef.current = value;
   const startValueRef = useRef(value);
@@ -147,14 +161,17 @@ export function Knob({
       </View>
       <GestureDetector gesture={gesture}>
         <View style={styles.knobWrapper}>
-          <View
-            style={[
-              styles.knob,
-              { backgroundColor: color },
-              { transform: [{ rotate: `${rotation}deg` }] },
-            ]}
-          >
-            <View style={styles.knobHolder}>
+          <View style={styles.knobShadow}>
+            <View
+              style={[styles.knob, { transform: [{ rotate: `${rotation}deg` }] }]}
+            >
+              <LinearGradient
+                colors={[...gradientColors]}
+                locations={[0, 0.1, 0.308, 0.32, 0.68, 0.692, 0.9, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.knobGradient}
+              />
               <View style={styles.indicator} />
             </View>
           </View>
@@ -202,18 +219,38 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 10,
     borderRadius: 10,
+    // overflow: 'hidden',
+    // boxShadow: '0 0 18px 0 rgba(0, 0, 0, 0.9), 0 28px 28px 0 rgba(0, 0, 0, 0.3)',
     
+  },
+  knobShadow: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    boxShadow: '0 0 18px 0 rgba(0, 0, 0, 0.9), 0 28px 28px 0 rgba(0, 0, 0, 0.3)',
   },
   knob: {
     width: 68,
     height: 68,
-    borderRadius: '50%',
+    borderRadius: 34,
     justifyContent: 'center',
     alignItems: 'center',
+    // borderWidth: 3,
+    // borderColor: 'rgba(0,0,0,0.2)',
+    // boxShadow: '0 0 18px 0 rgba(0, 0, 0, 0.9), 0 28px 28px 0 rgba(0, 0, 0, 0.3)',
+    // overflow: 'hidden',
+  },
+  knobGradient: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.2)',
-    boxShadow: '0 0 18px 0 rgba(0, 0, 0, 0.9)',
-    overflow: 'hidden',
+    // borderColor: 'linear-g radient(to top, rgba(255, 255, 255, 0.2), rgba(0,0,0,0.2))',
   },
   knobHolder: {
     width: 26,
