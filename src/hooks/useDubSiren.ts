@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AudioContext,
   AudioManager,
@@ -38,6 +38,9 @@ interface ButtonPlaybackState {
   endTimeoutId: any;
   gainNode: GainNode | null;
 }
+
+/** Power LED pulse period (ms) per beat index (0–3): beat 0 = 1s, 1 = 0.5s, 2 = 0.25s, 3 = 0.25s. */
+const BEAT_PULSE_MS: Record<number, number> = { 0: 600, 1: 300, 2: 150, 3: 1250 };
 
 const BUTTON_VARIANTS: Record<ButtonKind, { all: SampleVariant; end: SampleVariant }> = {
   siren: {
@@ -90,6 +93,7 @@ export interface UseDubSirenReturn {
   delayParams: DelayParams;
   setDelayParams: (updater: (prev: DelayParams) => DelayParams) => void;
   isPlaying: boolean;
+  beatPeriodMs: number | null;
   trigger: () => void;
   momentaryPress: () => void;
   momentaryRelease: () => void;
@@ -105,10 +109,15 @@ export function useDubSiren(): UseDubSirenReturn {
     pitch: 0,
     mode: 0,
     beat: 0,
-    volume: 0.75,
+    volume: 3,
   });
   const [isPlaying, setIsPlaying] = useState(false);
   const [delayParams, setDelayParamsState] = useState<DelayParams>(DEFAULT_DELAY_PARAMS);
+
+  const beatPeriodMs = useMemo(
+    () => (isPlaying ? BEAT_PULSE_MS[params.beat] ?? null : null),
+    [isPlaying, params.beat]
+  );
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const outputGainRef = useRef<GainNode | null>(null);
@@ -800,6 +809,7 @@ export function useDubSiren(): UseDubSirenReturn {
     delayParams,
     setDelayParams,
     isPlaying,
+    beatPeriodMs,
     trigger,
     momentaryPress,
     momentaryRelease,

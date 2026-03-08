@@ -31,6 +31,7 @@ export default function App() {
     delayParams,
     setDelayParams,
     isPlaying,
+    beatPeriodMs,
     trigger,
     momentaryPress,
     momentaryRelease,
@@ -106,14 +107,14 @@ export default function App() {
               label="VOL"
               type="volume"
               value={params.volume}
-              maxValue={4}
+              maxValue={6}
               minValue={0}
               continuous
               onValueChange={(v) => setParams({ volume: v })}
             />
             </View>
             <View style={styles.leftColumn}>
-            <PowerLed label="POWER" isOn={isPlaying} /> 
+            <PowerLed label="POWER" isOn={isPlaying} pulsePeriodMs={beatPeriodMs ?? undefined} /> 
             <SirenButton
               label="HOLD"
               onPressIn={momentaryPress}
