@@ -8,10 +8,18 @@ import {
   View,
 } from 'react-native';
 import type { DelayParams } from '../constants/audioParams';
+import {
+  DELAY_PRESETS,
+  findMatchingPreset,
+  applyPreset,
+} from '../constants/delayPresets';
 import { Knob } from './Knob';
+import { PresetSelect } from './PresetSelect';
 import { ToggleSwitch } from './ToggleSwitch';
 import { pedalColors } from '../theme/pedalColors';
 import { Ionicons } from '@expo/vector-icons';
+
+const PRESET_OPTIONS = DELAY_PRESETS.map((p) => ({ id: p.id, label: p.label }));
 
 
 interface SettingsDrawerProps {
@@ -97,14 +105,39 @@ export function SettingsDrawer({
             <Text style={styles.title}>DELAY SETTINGS</Text>
           </View>
           <View style={styles.content}>
-        
+          <View style={styles.presetRow}>
+            <PresetSelect
+              label="PRESET"
+              value={
+                findMatchingPreset(localParams)?.id ?? 'custom'
+              }
+              options={PRESET_OPTIONS}
+              onChange={(id) => {
+                const preset = DELAY_PRESETS.find((p) => p.id === id);
+                if (preset) {
+                  const next = applyPreset(preset, localParams.enabled);
+                  setLocalParams(next);
+                  onChangeDelayParams(() => next);
+                }
+              }}
+            />
+            <ToggleSwitch
+              label=""
+              value={localParams.enabled}
+              onToggle={() => {
+                const next = !localParams.enabled;
+                setLocalParams((prev) => ({ ...prev, enabled: next }));
+                onChangeDelayParams((prev) => ({ ...prev, enabled: next }));
+              }}
+            />
+          </View>
           <View style={styles.knobRow}>
             <Knob
               label="TIME"
               type="volume"
               value={localParams.time}
               maxValue={1}
-              minValue={0.1}
+              minValue={0.05}
               continuous
               onValueChange={(v) =>
                 setLocalParams((prev) => ({ ...prev, time: v }))
@@ -172,17 +205,6 @@ export function SettingsDrawer({
               labels={ECHO_LABELS}
             />
           </View>
-          <View style={styles.toggleRow}>
-             <ToggleSwitch
-              label="ENABLED"
-              value={localParams.enabled}
-              onToggle={() => {
-                const next = !localParams.enabled;
-                setLocalParams((prev) => ({ ...prev, enabled: next }));
-                onChangeDelayParams((prev) => ({ ...prev, enabled: next }));
-              }}
-            />
-            </View>
           </View>
         </ImageBackground>
       </Animated.View>
@@ -241,12 +263,16 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    // paddingBottom: 40,
+    
   },
-  toggleRow: {
-    marginBottom: 20,
+  presetRow: {
+    display: 'flex',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 20,
   },
   knobRow: {
     flexDirection: 'row',
