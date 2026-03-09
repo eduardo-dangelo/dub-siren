@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,8 @@ import type { DelayParams } from '../constants/audioParams';
 import { Knob } from './Knob';
 import { ToggleSwitch } from './ToggleSwitch';
 import { pedalColors } from '../theme/pedalColors';
+import { Ionicons } from '@expo/vector-icons';
+
 
 interface SettingsDrawerProps {
   visible: boolean;
@@ -82,11 +85,18 @@ export function SettingsDrawer({
         style={[styles.drawer, { transform: [{ translateX }] }]}
         pointerEvents="auto"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>DELAY SETTINGS</Text>
-        
-        </View>
-        <View style={styles.content}>
+        <ImageBackground
+          source={require('../../assets/enclosure-metal.png')}
+          resizeMode="cover"
+          style={styles.drawerBackground}
+          imageStyle={styles.drawerImage}
+        >
+          <View style={styles.drawerOverlay} pointerEvents="none" />
+          <View style={styles.header}>
+            <Ionicons name="settings-outline" size={18}  style={{ marginRight: 8 }} />
+            <Text style={styles.title}>DELAY SETTINGS</Text>
+          </View>
+          <View style={styles.content}>
         
           <View style={styles.knobRow}>
             <Knob
@@ -161,7 +171,8 @@ export function SettingsDrawer({
               }
               labels={ECHO_LABELS}
             />
-              <View style={styles.toggleRow}>
+          </View>
+          <View style={styles.toggleRow}>
              <ToggleSwitch
               label="ENABLED"
               value={localParams.enabled}
@@ -173,7 +184,7 @@ export function SettingsDrawer({
             />
             </View>
           </View>
-        </View>
+        </ImageBackground>
       </Animated.View>
     </View>
   );
@@ -195,11 +206,23 @@ const styles = StyleSheet.create({
   drawer: {
     width: DRAWER_WIDTH,
     height: '100%',
-    backgroundColor: 'rgba(169, 169, 169, 0.9)',
+    backgroundColor: pedalColors.enclosure,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
-    paddingBottom: 40,
-    
+    overflow: 'hidden',
+  },
+  drawerBackground: {
+    flex: 1,
+  },
+  drawerImage: {
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  drawerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(180, 180, 180, 0.58)',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
   header: {
     paddingVertical: 16,
@@ -207,6 +230,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
     display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   title: {
     fontSize: 14,
@@ -216,6 +241,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingBottom: 40,
   },
   toggleRow: {
     marginBottom: 20,

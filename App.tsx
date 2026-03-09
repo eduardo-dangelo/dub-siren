@@ -1,11 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AudioManager } from 'react-native-audio-api';
 import { Knob } from './src/components/Knob';
 import { PedalEnclosure } from './src/components/PedalEnclosure';
 import { PowerLed } from './src/components/PowerLed';
+import { InfoDrawer } from './src/components/InfoDrawer';
 import { SettingsDrawer } from './src/components/SettingsDrawer';
 import { SirenButton } from './src/components/SirenButton';
 import { ToggleSwitch } from './src/components/ToggleSwitch';
@@ -43,6 +45,7 @@ export default function App() {
   } = useDubSiren();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const hasResumedRef = useRef(false);
   const handleFirstInteraction = useCallback(async () => {
@@ -55,6 +58,11 @@ export default function App() {
   const handleSettingsPress = useCallback(async () => {
     await handleFirstInteraction();
     setIsSettingsOpen((prev) => !prev);
+  }, [handleFirstInteraction]);
+
+  const handleInfoPress = useCallback(async () => {
+    await handleFirstInteraction();
+    setIsInfoOpen((prev) => !prev);
   }, [handleFirstInteraction]);
 
   return (
@@ -73,6 +81,13 @@ export default function App() {
           accessibilityLabel="Settings"
         >
           <Text style={styles.settingsIcon}>⚙</Text>
+        </Pressable>
+        <Pressable
+          style={styles.infoButton}
+          onPress={handleInfoPress}
+          accessibilityLabel="How to use"
+        >
+          <Ionicons name="information-circle-outline" size={26} color={pedalColors.toggleChrome} />
         </Pressable>
         <PedalEnclosure>
           <View style={styles.landscapeLayout}>
@@ -147,6 +162,10 @@ export default function App() {
           delayParams={delayParams}
           onChangeDelayParams={setDelayParams}
         />
+        <InfoDrawer
+          visible={isInfoOpen}
+          onClose={() => setIsInfoOpen(false)}
+        />
       </ImageBackground>
     </Pressable>
     </GestureHandlerRootView>
@@ -214,6 +233,18 @@ const styles = StyleSheet.create({
   settingsIcon: {
     fontSize: 24,
     color: pedalColors.toggleChrome,
+  },
+  infoButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   jackBottom: {
     position: 'absolute',
