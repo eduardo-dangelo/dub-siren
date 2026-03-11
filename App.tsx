@@ -126,6 +126,7 @@ export default function App() {
               minValue={0}
               continuous
               arcDegrees={135}
+              arcStartDegrees={0}
               onValueChange={(v) => setParams({ volume: v })}
             />
             </View>

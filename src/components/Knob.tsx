@@ -52,7 +52,7 @@ export function Knob({
   continuous = false,
   minValue = 0,
   arcDegrees,
-  arcStartDegrees = 0,
+  arcStartDegrees = -135,
 }: KnobProps) {
   const color = KNOB_COLORS[type];
   const gradientColors = useMemo(() => {

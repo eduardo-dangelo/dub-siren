@@ -83,7 +83,7 @@ function createBufferSource(ctx: AudioContext): BufferSourceNode {
 
 /** Main VOL knob max (UI sends 0..VOLUME_KNOB_MAX). */
 const VOLUME_KNOB_MAX = 6;
-const VOLUME_MIN_DB = -60;
+const VOLUME_MIN_DB = -10;
 const VOLUME_MAX_DB = 10;
 
 /**
