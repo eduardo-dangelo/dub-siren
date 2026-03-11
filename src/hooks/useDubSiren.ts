@@ -3,6 +3,7 @@ import {
   AudioContext,
   AudioManager,
   AudioNode,
+  BiquadFilterNode,
   ConvolverNode,
   GainNode,
 } from 'react-native-audio-api';
@@ -123,6 +124,7 @@ export function useDubSiren(): UseDubSirenReturn {
   const outputGainRef = useRef<GainNode | null>(null);
   const delayInputRef = useRef<GainNode | null>(null);
   const convolver0Ref = useRef<ConvolverNode | null>(null);
+  const delayToneFilterRef = useRef<BiquadFilterNode | null>(null);
   const delayGain0Ref = useRef<GainNode | null>(null);
   const mainSourceRef = useRef<BufferSourceNode | null>(null);
   const mainAllTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,6 +172,7 @@ export function useDubSiren(): UseDubSirenReturn {
     outputGainRef.current = null;
     delayInputRef.current = null;
     convolver0Ref.current = null;
+    delayToneFilterRef.current = null;
     delayGain0Ref.current = null;
     mainSourceRef.current = null;
     if (mainAllTimeoutIdRef.current) {
@@ -249,17 +252,24 @@ export function useDubSiren(): UseDubSirenReturn {
         }
 
         let conv0 = convolver0Ref.current;
+        let toneFilter = delayToneFilterRef.current;
         let gain0 = delayGain0Ref.current;
-        if (!conv0 || !gain0) {
+        if (!conv0 || !toneFilter || !gain0) {
           conv0 = ctx.createConvolver();
           conv0.buffer = createDelayImpulseResponse(ctx, delayParamsRef.current);
           conv0.normalize = false;
+          toneFilter = ctx.createBiquadFilter();
+          toneFilter.type = 'lowpass';
+          toneFilter.frequency.value = 7000;
+          toneFilter.Q.value = 0.7;
           gain0 = ctx.createGain();
           gain0.gain.value = 1;
           delayInput.connect(conv0);
-          conv0.connect(gain0);
+          conv0.connect(toneFilter);
+          toneFilter.connect(gain0);
           gain0.connect(output);
           convolver0Ref.current = conv0;
+          delayToneFilterRef.current = toneFilter;
           delayGain0Ref.current = gain0;
         }
 
@@ -270,6 +280,7 @@ export function useDubSiren(): UseDubSirenReturn {
       const toDisconnect = [
         delayInputRef.current,
         convolver0Ref.current,
+        delayToneFilterRef.current,
         delayGain0Ref.current,
       ];
       toDisconnect.forEach((node) => {
@@ -283,6 +294,7 @@ export function useDubSiren(): UseDubSirenReturn {
       });
       delayInputRef.current = null;
       convolver0Ref.current = null;
+      delayToneFilterRef.current = null;
       delayGain0Ref.current = null;
 
       return output;
@@ -695,6 +707,7 @@ export function useDubSiren(): UseDubSirenReturn {
     const output = outputGainRef.current;
     const delayInput = delayInputRef.current;
     const conv0 = convolver0Ref.current;
+    const toneFilter = delayToneFilterRef.current;
     const gain0 = delayGain0Ref.current;
 
     // Delay disabled and no delay chain: already correct, nothing to do
@@ -703,7 +716,7 @@ export function useDubSiren(): UseDubSirenReturn {
     }
 
     // Delay enabled with existing chain: swap convolver with new params (single path only)
-    if (delayParams.enabled && delayInput && conv0 && gain0 && output) {
+    if (delayParams.enabled && delayInput && conv0 && toneFilter && gain0 && output) {
       try {
         const newConv = ctx.createConvolver();
         newConv.buffer = createDelayImpulseResponse(ctx, delayParams);
@@ -715,9 +728,9 @@ export function useDubSiren(): UseDubSirenReturn {
         } catch {
           // ignore if disconnect(dest) not supported
         }
-        // Connect new path
+        // Connect new path: conv -> toneFilter -> gain0
         delayInput.connect(newConv);
-        newConv.connect(gain0);
+        newConv.connect(toneFilter);
         convolver0Ref.current = newConv;
       } catch {
         // ignore
@@ -792,6 +805,7 @@ export function useDubSiren(): UseDubSirenReturn {
     const toDisconnect = [
       delayInputRef.current,
       convolver0Ref.current,
+      delayToneFilterRef.current,
       delayGain0Ref.current,
       outputGainRef.current,
     ];
@@ -806,6 +820,7 @@ export function useDubSiren(): UseDubSirenReturn {
     });
     delayInputRef.current = null;
     convolver0Ref.current = null;
+    delayToneFilterRef.current = null;
     delayGain0Ref.current = null;
     outputGainRef.current = null;
   }, [stopMainSample]);

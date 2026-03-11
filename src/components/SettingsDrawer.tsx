@@ -21,6 +21,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 const PRESET_OPTIONS = DELAY_PRESETS.map((p) => ({ id: p.id, label: p.label }));
 
+/** Derive mix (0-1) from dry/wet for display. 0 = all dry, 1 = all wet. */
+function mixFromDryWet(dryLevel: number, wetLevel: number): number {
+  const sum = dryLevel + wetLevel;
+  return sum <= 0 ? 0.5 : wetLevel / sum;
+}
 
 interface SettingsDrawerProps {
   visible: boolean;
@@ -28,8 +33,6 @@ interface SettingsDrawerProps {
   delayParams: DelayParams;
   onChangeDelayParams: (updater: (prev: DelayParams) => DelayParams) => void;
 }
-
-const ECHO_LABELS = Array.from({ length: 20 }, (_, i) => String(i + 1));
 
 export function SettingsDrawer({
   visible,
@@ -161,48 +164,26 @@ export function SettingsDrawer({
               }
             />
             <Knob
-              label="DRY"
+              label="MIX"
               type="volume"
-              value={localParams.dryLevel}
+              value={mixFromDryWet(localParams.dryLevel, localParams.wetLevel)}
               maxValue={1}
               minValue={0}
               continuous
               onValueChange={(v) =>
-                setLocalParams((prev) => ({ ...prev, dryLevel: v }))
-              }
-              onValueCommit={(v) =>
-                onChangeDelayParams((prev) => ({ ...prev, dryLevel: v }))
-              }
-            />
-            <Knob
-              label="WET"
-              type="volume"
-              value={localParams.wetLevel}
-              maxValue={1}
-              minValue={0}
-              continuous
-              onValueChange={(v) =>
-                setLocalParams((prev) => ({ ...prev, wetLevel: v }))
-              }
-              onValueCommit={(v) =>
-                onChangeDelayParams((prev) => ({ ...prev, wetLevel: v }))
-              }
-            />
-            <Knob
-              label="ECHO"
-              type="beat"
-              value={localParams.echoCount - 1}
-              maxValue={19}
-              onValueChange={(v) =>
-                setLocalParams((prev) => ({ ...prev, echoCount: v + 1 }))
+                setLocalParams((prev) => ({
+                  ...prev,
+                  dryLevel: 1 - v,
+                  wetLevel: v,
+                }))
               }
               onValueCommit={(v) =>
                 onChangeDelayParams((prev) => ({
                   ...prev,
-                  echoCount: v + 1,
+                  dryLevel: 1 - v,
+                  wetLevel: v,
                 }))
               }
-              labels={ECHO_LABELS}
             />
           </View>
           </View>

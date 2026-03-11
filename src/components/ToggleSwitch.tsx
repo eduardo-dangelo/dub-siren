@@ -24,7 +24,14 @@ export function ToggleSwitch({ label, value, onToggle, verticalLabel = false }: 
             styles.thumb,
             value ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' },
           ]}
-        />
+        >
+        <View style={{ justifyContent: 'center', alignItems: 'center', height: '100%', marginHorizontal: 2 }}>
+          {/* Burger menu icon: three vertical dots */}
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: value ? pedalColors.switchAccent : '#666', marginVertical: 1 }} />
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: value ? pedalColors.switchAccent : '#666', marginVertical: 1 }} />
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: value ? pedalColors.switchAccent : '#666', marginVertical: 1 }} />
+        </View>
+        </View>
       </Pressable>
     </View>
   );
