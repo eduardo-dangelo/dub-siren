@@ -20,6 +20,10 @@ interface KnobProps {
   verticalLabel?: boolean;
   continuous?: boolean;
   minValue?: number;
+  /** Optional arc in degrees for non-pitch/mode/beat knobs; defaults to legacy 270°. */
+  arcDegrees?: number;
+  /** Rotation angle (degrees) for the minimum value; arc sweeps clockwise from here. Default 0 (up). */
+  arcStartDegrees?: number;
 }
 
 const KNOB_COLORS: Record<KnobType, string> = {
@@ -47,6 +51,8 @@ export function Knob({
   verticalLabel = false,
   continuous = false,
   minValue = 0,
+  arcDegrees,
+  arcStartDegrees = 0,
 }: KnobProps) {
   const color = KNOB_COLORS[type];
   const gradientColors = useMemo(() => {
@@ -57,14 +63,20 @@ export function Knob({
     return [s2, s2, s4, s, s, s1, s2, s2] as const;
   }, [color]);
   const valueRange = maxValue - minValue;
+  // Non-pitch/mode/beat: min value at arcStartDegrees, then arc sweeps clockwise.
   const rotation =
     type === 'pitch' || type === 'mode' || type === 'beat'
       ? valueRange > 0
         ? ((value - minValue) / valueRange) * 90
         : 0
       : valueRange > 0
-        ? ((value - minValue) / valueRange) * 270 - 135
-        : -135;
+        ? (() => {
+            const arc = arcDegrees ?? 270;
+            const start = arcStartDegrees;
+            const normalized = (value - minValue) / valueRange;
+            return start + normalized * arc;
+          })()
+        : 0;
   const valueRef = useRef(value);
   valueRef.current = value;
   const startValueRef = useRef(value);

@@ -125,6 +125,7 @@ export default function App() {
               maxValue={6}
               minValue={0}
               continuous
+              arcDegrees={135}
               onValueChange={(v) => setParams({ volume: v })}
             />
             </View>

@@ -81,11 +81,28 @@ function createBufferSource(ctx: AudioContext): BufferSourceNode {
   return ctx.createBufferSource() as unknown as BufferSourceNode;
 }
 
+/** Main VOL knob max (UI sends 0..VOLUME_KNOB_MAX). */
+const VOLUME_KNOB_MAX = 6;
+const VOLUME_MIN_DB = -60;
+const VOLUME_MAX_DB = 10;
+
+/**
+ * Maps volume knob position (0..VOLUME_KNOB_MAX) to linear gain with a dB-style curve
+ * so that equal knob movement gives roughly equal perceived loudness (0 ≈ silent, max = unity).
+ */
+function volumeParamToGain(param: number): number {
+  if (param <= 0) return 0;
+  const t = Math.min(param / VOLUME_KNOB_MAX, 1);
+  const db = VOLUME_MIN_DB + t * (VOLUME_MAX_DB - VOLUME_MIN_DB);
+  return Math.pow(10, db / 20);
+}
+
 export interface DubSirenParams {
   pitch: number; // 0-3
   mode: number; // 0-3
   beat: number; // 0-3 (0 = OFF)
-  volume: number; // 0-2 (1 = unity, 2 = 2x louder)
+  /** Knob position 0..6; gain is applied with a dB-style curve (0 ≈ silent, 6 = unity). */
+  volume: number;
 }
 
 export interface UseDubSirenReturn {
@@ -110,7 +127,7 @@ export function useDubSiren(): UseDubSirenReturn {
     pitch: 0,
     mode: 0,
     beat: 0,
-    volume: 3,
+    volume: 4,
   });
   const [isPlaying, setIsPlaying] = useState(false);
   const [delayParams, setDelayParamsState] = useState<DelayParams>(DEFAULT_DELAY_PARAMS);
@@ -236,11 +253,11 @@ export function useDubSiren(): UseDubSirenReturn {
 
       if (!output) {
         output = ctx.createGain();
-        output.gain.value = paramsRef.current.volume;
+        output.gain.value = volumeParamToGain(paramsRef.current.volume);
         output.connect(ctx.destination);
         outputGainRef.current = output;
       } else {
-        output.gain.value = paramsRef.current.volume;
+        output.gain.value = volumeParamToGain(paramsRef.current.volume);
       }
 
       if (delayParamsRef.current.enabled) {
@@ -686,7 +703,7 @@ export function useDubSiren(): UseDubSirenReturn {
   useEffect(() => {
     const output = outputGainRef.current;
     if (output) {
-      output.gain.value = params.volume;
+      output.gain.value = volumeParamToGain(params.volume);
     }
   }, [params.volume]);
 
