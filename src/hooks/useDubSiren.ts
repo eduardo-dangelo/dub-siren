@@ -37,9 +37,15 @@ interface ButtonPlaybackState {
   endSource: BufferSourceNode | null;
   allTimeoutId: any;
   endTimeoutId: any;
+  /** When _ALL started (Date.now()). Used so _END only plays after MIN_SIREN_TONE_MS. */
+  allStartedAt: number | null;
+  /** Timeout that fires when min duration is reached after early release; then we stop _ALL and play _END. */
+  minDurationTimeoutId: ReturnType<typeof setTimeout> | null;
   gainNode: GainNode | null;
 }
 
+/** Minimum time (ms) the siren/tone _ALL sample must play before _END is allowed. If released sooner, _ALL keeps playing until this time then _END plays. */
+const MIN_SIREN_TONE_MS = 2000;
 /** Power LED pulse period (ms) per beat index (0–3): beat 0 = 1s, 1 = 0.5s, 2 = 0.25s, 3 = 0.25s. */
 const BEAT_PULSE_MS: Record<number, number> = { 0: 600, 1: 300, 2: 150, 3: 3000 };
 
@@ -73,6 +79,8 @@ function makeInitialButtonState(): ButtonPlaybackState {
     endSource: null,
     allTimeoutId: null,
     endTimeoutId: null,
+    allStartedAt: null,
+    minDurationTimeoutId: null,
     gainNode: null,
   };
 }
@@ -124,7 +132,7 @@ export interface UseDubSirenReturn {
 
 export function useDubSiren(): UseDubSirenReturn {
   const [params, setParamsState] = useState<DubSirenParams>({
-    pitch: 0,
+    pitch: 2,
     mode: 0,
     beat: 0,
     volume: 4,
@@ -202,7 +210,7 @@ export function useDubSiren(): UseDubSirenReturn {
   }, []);
 
   const applyFadeIn = useCallback((ctx: AudioContext, gain: GainNode) => {
-    const FADE_TIME = 0; // 10ms
+    const FADE_TIME = 0;
     try {
       const param: any = (gain as any).gain;
       const now = (ctx as any).currentTime ?? 0;
@@ -215,8 +223,7 @@ export function useDubSiren(): UseDubSirenReturn {
         param.setValueAtTime(0, now);
         param.linearRampToValueAtTime(1, now + FADE_TIME);
       } else {
-        // Fallback: just set to 1 without a ramp
-        param.value = 1;
+        if (param) param.value = 1;
       }
     } catch {
       // ignore – if scheduling fails, we still let audio play
@@ -341,6 +348,26 @@ export function useDubSiren(): UseDubSirenReturn {
       setIsPlaying(false);
     }
   }, []);
+
+  const stopSingleButton = useCallback(
+    (stateRef: React.MutableRefObject<ButtonPlaybackState>) => {
+      const state = stateRef.current;
+      if (state.allTimeoutId) clearTimeout(state.allTimeoutId);
+      if (state.endTimeoutId) clearTimeout(state.endTimeoutId);
+      if (state.minDurationTimeoutId) clearTimeout(state.minDurationTimeoutId);
+      stopSource(state.allSource);
+      stopSource(state.endSource);
+      stateRef.current = makeInitialButtonState();
+    },
+    []
+  );
+
+  /** Stop siren and tone playback (cut sound, reset to idle). Does not disconnect gain nodes. */
+  const stopSirenAndTone = useCallback(() => {
+    stopSingleButton(sirenStateRef);
+    stopSingleButton(toneStateRef);
+    setPlayingFalseIfNothingElse();
+  }, [setPlayingFalseIfNothingElse, stopSingleButton]);
 
   const startMainSample = useCallback(
     async (currentParams: DubSirenParams) => {
@@ -534,6 +561,9 @@ export function useDubSiren(): UseDubSirenReturn {
       const chainInput = ensureOutputChain(ctx);
       const variants = BUTTON_VARIANTS[kind];
       const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
+      const otherRef = kind === 'siren' ? toneStateRef : sirenStateRef;
+      // Ensure the opposite button is fully stopped so siren and tone are mutually exclusive.
+      stopSingleButton(otherRef);
       const gain = getOrCreateButtonGain(ctx, chainInput, kind);
 
       const existing = stateRef.current;
@@ -545,6 +575,9 @@ export function useDubSiren(): UseDubSirenReturn {
       if (existing.endTimeoutId) {
         clearTimeout(existing.endTimeoutId);
       }
+      if (existing.minDurationTimeoutId) {
+        clearTimeout(existing.minDurationTimeoutId);
+      }
 
       stateRef.current = {
         phase: 'idle',
@@ -554,6 +587,8 @@ export function useDubSiren(): UseDubSirenReturn {
         endSource: null,
         allTimeoutId: null,
         endTimeoutId: null,
+        allStartedAt: null,
+        minDurationTimeoutId: null,
         gainNode: gain,
       };
 
@@ -593,6 +628,7 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
+      const allStartedAt = Date.now();
       const allDurationMs = Math.ceil(buffer.duration * 1000) + 50;
       const timeoutId = setTimeout(() => {
         const state = stateRef.current;
@@ -602,6 +638,15 @@ export function useDubSiren(): UseDubSirenReturn {
               `[DubSiren] _ALL timeout for ${kind}: state changed (phase=${state.phase}), ignoring`
             );
           }
+          return;
+        }
+        // If we're waiting for min duration (user released early), only clear _ALL; minDurationTimeoutId will play _END later
+        if (state.minDurationTimeoutId) {
+          stateRef.current = {
+            ...state,
+            allSource: null,
+            allTimeoutId: null,
+          };
           return;
         }
 
@@ -622,6 +667,8 @@ export function useDubSiren(): UseDubSirenReturn {
         phase: 'playing_all',
         allSource,
         allTimeoutId: timeoutId,
+        allStartedAt,
+        minDurationTimeoutId: null,
       };
 
       try {
@@ -656,6 +703,47 @@ export function useDubSiren(): UseDubSirenReturn {
       state.isHeld = false;
 
       if (state.phase === 'playing_all') {
+        const startedAt = state.allStartedAt ?? Date.now();
+        const elapsed = Date.now() - startedAt;
+
+        if (elapsed < MIN_SIREN_TONE_MS) {
+          // Keep _ALL playing until min duration, then play _END
+          const delayMs = MIN_SIREN_TONE_MS - elapsed;
+          if (state.minDurationTimeoutId) {
+            clearTimeout(state.minDurationTimeoutId);
+          }
+          const minDurationTimeoutId = setTimeout(() => {
+            const s = stateRef.current;
+            if (s.allSource) {
+              stopSource(s.allSource);
+            }
+            if (s.allTimeoutId) {
+              clearTimeout(s.allTimeoutId);
+            }
+            stateRef.current = {
+              ...s,
+              phase: 'playing_all',
+              allSource: null,
+              allTimeoutId: null,
+              minDurationTimeoutId: null,
+            };
+            if (__DEV__) {
+              console.log(
+                `[DubSiren] releaseButtonSequence(${kind}): min duration reached, starting END`
+              );
+            }
+            void startEndForButton(kind);
+          }, delayMs);
+          stateRef.current = { ...state, minDurationTimeoutId };
+          if (__DEV__) {
+            console.log(
+              `[DubSiren] releaseButtonSequence(${kind}): released early, _ALL continues for ${delayMs}ms then END`
+            );
+          }
+          return;
+        }
+
+        // Already played at least MIN_SIREN_TONE_MS: stop _ALL and play _END now
         if (state.allSource) {
           stopSource(state.allSource);
           state.allSource = null;
@@ -678,6 +766,13 @@ export function useDubSiren(): UseDubSirenReturn {
 
   const trigger = useCallback(async () => {
     if (__DEV__) console.log('[DubSiren] trigger called');
+    const sirenActive = sirenStateRef.current.phase !== 'idle';
+    const toneActive = toneStateRef.current.phase !== 'idle';
+    if (sirenActive || toneActive) {
+      stopSirenAndTone();
+      stopMainSample();
+      return;
+    }
     if (mainSourceRef.current) {
       stopMainSample();
     } else {
@@ -686,7 +781,7 @@ export function useDubSiren(): UseDubSirenReturn {
         if (__DEV__) console.warn('[DubSiren] trigger startMainSample failed', e);
       });
     }
-  }, [resumeContext, startMainSample, stopMainSample]);
+  }, [resumeContext, startMainSample, stopMainSample, stopSirenAndTone]);
 
   const momentaryPress = useCallback(async () => {
     if (__DEV__) console.log('[DubSiren] momentaryPress (HOLD) called');
@@ -707,14 +802,20 @@ export function useDubSiren(): UseDubSirenReturn {
     }
   }, [params.volume]);
 
-  // Restart main sample when pitch/mode/beat change during playback
+  // Cut siren/tone and restart main when pitch/mode/beat change during playback
   useEffect(() => {
-    if (!mainSourceRef.current) return;
-    stopMainSample();
-    startMainSample(paramsRef.current).catch((e) => {
-      if (__DEV__) console.warn('[DubSiren] param-change restart failed', e);
-    });
-  }, [params.pitch, params.mode, params.beat, stopMainSample, startMainSample]);
+    const sirenActive = sirenStateRef.current.phase !== 'idle';
+    const toneActive = toneStateRef.current.phase !== 'idle';
+    if (sirenActive || toneActive) {
+      stopSirenAndTone();
+    }
+    if (mainSourceRef.current) {
+      stopMainSample();
+      startMainSample(paramsRef.current).catch((e) => {
+        if (__DEV__) console.warn('[DubSiren] param-change restart failed', e);
+      });
+    }
+  }, [params.pitch, params.mode, params.beat, stopMainSample, startMainSample, stopSirenAndTone]);
 
   // React to delay param changes: swap single convolver in place, or reconnect chain when toggled
   useEffect(() => {
@@ -807,6 +908,9 @@ export function useDubSiren(): UseDubSirenReturn {
       }
       if (state.endTimeoutId) {
         clearTimeout(state.endTimeoutId);
+      }
+      if (state.minDurationTimeoutId) {
+        clearTimeout(state.minDurationTimeoutId);
       }
       stopSource(state.allSource);
       stopSource(state.endSource);
