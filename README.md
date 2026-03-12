@@ -1,8 +1,8 @@
 # Dub Siren – NJD Style
-[🌐 Landing Page](https://eduardo-dangelo.github.io/dub-siren/)
+[🏠 Home Page](https://eduardo-dangelo.github.io/dub-siren/)
 
 
-**Sound System Synth.** The legendary dub siren, in your pocket. Analog sound system tones.
+**Sound System Synth.** Analog sound system tones.
 
 
 ![Dub Siren pedal-style control panel](landing/assets/how-it-works-phone.png)
