@@ -1,0 +1,238 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "linear-gradient" : [
+          "srgb:0.92143,0.92145,0.92144,1.00000",
+          "srgb:0.66422,0.66424,0.66423,1.00000"
+        ],
+        "orientation" : {
+          "start" : {
+            "x" : 0.5,
+            "y" : 1
+          },
+          "stop" : {
+            "x" : 0.5,
+            "y" : 0.3
+          }
+        }
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "linear-gradient" : [
+          "srgb:0.47563,0.47565,0.47564,1.00000",
+          "srgb:0.12984,0.12985,0.12984,1.00000"
+        ],
+        "orientation" : {
+          "start" : {
+            "x" : 0.5,
+            "y" : 1
+          },
+          "stop" : {
+            "x" : 0.5,
+            "y" : 0.3
+          }
+        }
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "knob indicator.svg",
+          "name" : "knob indicator",
+          "position" : {
+            "scale" : 1.4,
+            "translation-in-points" : [
+              223.21875,
+              -225.78125
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.7
+      },
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.5
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "enabled" : false,
+            "value" : 0.5
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "enabled" : false,
+            "value" : 0.5
+          }
+        }
+      ]
+    },
+    {
+      "blur-material-specializations" : [
+        {
+          "value" : 0.5
+        },
+        {
+          "appearance" : "tinted",
+          "value" : 0.18
+        }
+      ],
+      "hidden" : false,
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.96190,0.40411,0.31374,1.00000",
+              "srgb:1.00000,0.14913,0.00000,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.38095238095238093,
+                "y" : 0.3934795673076923
+              },
+              "stop" : {
+                "x" : 0.6089073129251701,
+                "y" : 0.6439517513736264
+              }
+            }
+          },
+          "hidden" : false,
+          "image-name" : "knob holder.svg",
+          "name" : "knob holder",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.06,
+            "translation-in-points" : [
+              -1,
+              0
+            ]
+          }
+        }
+      ],
+      "opacity-specializations" : [
+        {
+          "value" : 0.85
+        },
+        {
+          "appearance" : "tinted",
+          "value" : 1
+        }
+      ],
+      "shadow-specializations" : [
+        {
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.7
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.8
+          }
+        }
+      ],
+      "specular" : true,
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.5
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "enabled" : false,
+            "value" : 0.87
+          }
+        }
+      ]
+    },
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:1.00000,0.41018,0.38468,1.00000",
+              "display-p3:0.79653,0.22369,0.13390,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.20918214516505418,
+                "y" : 0.12928563183487216
+              },
+              "stop" : {
+                "x" : 0.7995632313549974,
+                "y" : 0.8798492937506606
+              }
+            }
+          },
+          "glass" : true,
+          "image-name" : "knob base.svg",
+          "name" : "knob base",
+          "opacity-specializations" : [
+            {
+              "value" : 1
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 0.8
+            }
+          ],
+          "position" : {
+            "scale" : 0.29,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "position" : {
+        "scale" : 3.39,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.8
+      },
+      "translucency-specializations" : [
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "enabled" : false,
+            "value" : 0.35
+          }
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

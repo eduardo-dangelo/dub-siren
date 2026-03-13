@@ -97,10 +97,22 @@ img {
   letter-spacing: 0.08em;
 }
 
+.brand-mark .brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
 .brand-mark.small {
   width: 26px;
   height: 26px;
   font-size: 12px;
+}
+
+.brand-mark.small .brand-logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
 
 .brand-text {
