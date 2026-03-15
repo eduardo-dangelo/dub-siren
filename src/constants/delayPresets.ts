@@ -67,6 +67,78 @@ export const DELAY_PRESETS: DelayPreset[] = [
       echoCount: 6,
     },
   },
+  // Dotted 8th @ 120 BPM — syncopated bounce
+  {
+    id: 'dotted-8th',
+    label: 'Dotted 8th',
+    params: {
+      time: 0.375,
+      feedback: 0.3,
+      dryLevel: 0.6,
+      wetLevel: 0.4,
+      echoCount: 4,
+    },
+  },
+  // Roland 1/16D dub echo — snares / siren hits
+  {
+    id: 'sixteenth-dub',
+    label: '1/16 Dubbed',
+    params: {
+      time: 0.22,
+      feedback: 0.45,
+      dryLevel: 0.5,
+      wetLevel: 0.5,
+      echoCount: 6,
+    },
+  },
+  // Send-style 100% wet aux
+  {
+    id: 'send',
+    label: 'Send',
+    params: {
+      time: 0.25,
+      feedback: 0.3,
+      dryLevel: 0.3,
+      wetLevel: 0.7,
+      echoCount: 5,
+    },
+  },
+  // Black Ark style — pushed RE-201
+  {
+    id: 'black-ark',
+    label: 'Black Ark',
+    params: {
+      time: 0.35,
+      feedback: 0.5,
+      dryLevel: 0.5,
+      wetLevel: 0.5,
+      echoCount: 7,
+    },
+  },
+  // King Tubby style — long, washy
+  {
+    id: 'king-tubby',
+    label: 'King Tubby',
+    params: {
+      time: 0.67,
+      feedback: 0.55,
+      dryLevel: 0.45,
+      wetLevel: 0.55,
+      echoCount: 8,
+    },
+  },
+  // Self-oscillation / feedback monster
+  {
+    id: 'runaway',
+    label: 'Runaway',
+    params: {
+      time: 0.5,
+      feedback: 0.78,
+      dryLevel: 0.45,
+      wetLevel: 0.55,
+      echoCount: 10,
+    },
+  },
 ];
 
 const TOLERANCE = 0.02;
