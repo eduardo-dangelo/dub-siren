@@ -339,15 +339,43 @@ export function useDubSiren(): UseDubSirenReturn {
     setIsPlaying(false);
   }, []);
 
+  /** Swap in a fresh ConvolverNode when delay is on so the next play has no overlapping tail (avoids clipping on second play). */
+  const resetDelayConvolverIfNeeded = useCallback(() => {
+    if (!delayParamsRef.current.enabled) return;
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+    const delayInput = delayInputRef.current;
+    const conv0 = convolver0Ref.current;
+    const toneFilter = delayToneFilterRef.current;
+    if (!delayInput || !conv0 || !toneFilter) return;
+    try {
+      const newConv = ctx.createConvolver();
+      newConv.buffer = createDelayImpulseResponse(ctx, delayParamsRef.current);
+      newConv.normalize = false;
+      conv0.disconnect();
+      try {
+        delayInput.disconnect(conv0);
+      } catch {
+        // ignore if disconnect(dest) not supported
+      }
+      delayInput.connect(newConv);
+      newConv.connect(toneFilter);
+      convolver0Ref.current = newConv;
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const setPlayingFalseIfNothingElse = useCallback(() => {
     if (
       !mainSourceRef.current &&
       sirenStateRef.current.phase === 'idle' &&
       toneStateRef.current.phase === 'idle'
     ) {
+      resetDelayConvolverIfNeeded();
       setIsPlaying(false);
     }
-  }, []);
+  }, [resetDelayConvolverIfNeeded]);
 
   const stopSingleButton = useCallback(
     (stateRef: React.MutableRefObject<ButtonPlaybackState>) => {
@@ -397,6 +425,8 @@ export function useDubSiren(): UseDubSirenReturn {
       }
 
       const chainInput = ensureOutputChain(ctx);
+      // Reset delay convolver so any tail from previous play is gone before this one (avoids clipping on second play).
+      resetDelayConvolverIfNeeded();
       const source = createBufferSource(ctx);
 
       source.buffer = buffer;
@@ -424,13 +454,13 @@ export function useDubSiren(): UseDubSirenReturn {
           }
           mainSourceRef.current = null;
           mainAllTimeoutIdRef.current = null;
-          setIsPlaying(false);
+          setPlayingFalseIfNothingElse();
         }, durationMs);
       }
 
       if (__DEV__) console.log('[DubSiren] startMainSample: playing', useAll ? '(main_all once)' : '');
     },
-    [ensureOutputChain, getAudioContext]
+    [ensureOutputChain, getAudioContext, resetDelayConvolverIfNeeded, setPlayingFalseIfNothingElse]
   );
 
   const startEndForButton = useCallback(
@@ -564,6 +594,8 @@ export function useDubSiren(): UseDubSirenReturn {
       const otherRef = kind === 'siren' ? toneStateRef : sirenStateRef;
       // Ensure the opposite button is fully stopped so siren and tone are mutually exclusive.
       stopSingleButton(otherRef);
+      // Reset delay convolver so any tail from previous play is gone before this one (avoids clipping on second play).
+      resetDelayConvolverIfNeeded();
       const gain = getOrCreateButtonGain(ctx, chainInput, kind);
 
       const existing = stateRef.current;
@@ -686,7 +718,7 @@ export function useDubSiren(): UseDubSirenReturn {
         stateRef.current = makeInitialButtonState();
       }
     },
-    [ensureOutputChain, getAudioContext, setPlayingFalseIfNothingElse]
+    [ensureOutputChain, getAudioContext, resetDelayConvolverIfNeeded, setPlayingFalseIfNothingElse]
   );
 
   const releaseButtonSequence = useCallback(
