@@ -17,11 +17,11 @@ import { CableJack } from './src/components/CableJack';
 
 export default function App() {
   useEffect(() => {
-    // playback-only; defaultToSpeaker is only valid for playAndRecord
+    // Use playAndRecord + defaultToSpeaker so output routes to device speaker on iOS.
     AudioManager.setAudioSessionOptions({
-      iosCategory: 'playback',
+      iosCategory: 'playAndRecord',
       iosMode: 'default',
-      iosOptions: ['allowBluetoothA2DP'],
+      iosOptions: ['defaultToSpeaker', 'allowBluetoothA2DP'],
     });
     // Explicitly activate the session for reliable startup on iOS.
     void AudioManager.setAudioSessionActivity(true);
@@ -154,10 +154,10 @@ export default function App() {
             </View>
           </View>
         </PedalEnclosure>
-        <View style={styles.jackBottom}>
+        {/* <View style={styles.jackBottom}>
           <CableJack variant="input" orientation="bottom" />
           <CableJack variant="power" orientation="bottom" />
-        </View>
+        </View> */}
         <SettingsDrawer
           visible={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   jackBottom: {
     position: 'absolute',
-    top: '85%',
+    top: '65%',
     left: '60%',
     // borderWidth: 1,
     // borderColor: 'red',
