@@ -108,84 +108,100 @@ export function SettingsDrawer({
             <Text style={styles.title}>DELAY SETTINGS</Text>
           </View>
           <View style={styles.content}>
-          <View style={styles.presetRow}>
-            <PresetSelect
-              label="PRESET"
-              value={
-                findMatchingPreset(localParams)?.id ?? 'custom'
-              }
-              options={PRESET_OPTIONS}
-              onChange={(id) => {
-                const preset = DELAY_PRESETS.find((p) => p.id === id);
-                if (preset) {
-                  const next = applyPreset(preset, localParams.enabled);
-                  setLocalParams(next);
-                  onChangeDelayParams(() => next);
+            <View style={styles.presetRow}>
+              <PresetSelect
+                label="PRESET"
+                value={
+                  findMatchingPreset(localParams)?.id ?? 'custom'
                 }
-              }}
-            />
-            <ToggleSwitch
-              label=""
-              value={localParams.enabled}
-              onToggle={() => {
-                const next = !localParams.enabled;
-                setLocalParams((prev) => ({ ...prev, enabled: next }));
-                onChangeDelayParams((prev) => ({ ...prev, enabled: next }));
-              }}
-            />
-          </View>
-          <View style={styles.knobRow}>
-            <Knob
-              label="TIME"
-              type="volume"
-              value={localParams.time}
-              maxValue={1}
-              minValue={0.05}
-              continuous
-              onValueChange={(v) =>
-                setLocalParams((prev) => ({ ...prev, time: v }))
-              }
-              onValueCommit={(v) =>
-                onChangeDelayParams((prev) => ({ ...prev, time: v }))
-              }
-            />
-            <Knob
-              label="FEEDBACK"
-              type="volume"
-              value={localParams.feedback}
-              maxValue={1}
-              minValue={0}
-              continuous
-              onValueChange={(v) =>
-                setLocalParams((prev) => ({ ...prev, feedback: v }))
-              }
-              onValueCommit={(v) =>
-                onChangeDelayParams((prev) => ({ ...prev, feedback: v }))
-              }
-            />
-            <Knob
-              label="MIX"
-              type="volume"
-              value={mixFromDryWet(localParams.dryLevel, localParams.wetLevel)}
-              maxValue={1}
-              minValue={0}
-              continuous
-              onValueChange={(v) =>
-                setLocalParams((prev) => ({
-                  ...prev,
-                  dryLevel: 1 - v,
-                  wetLevel: v,
-                }))
-              }
-              onValueCommit={(v) =>
-                onChangeDelayParams((prev) => ({
-                  ...prev,
-                  dryLevel: 1 - v,
-                  wetLevel: v,
-                }))
-              }
-            />
-          </View>
+                options={PRESET_OPTIONS}
+                onChange={(id) => {
+                  const preset = DELAY_PRESETS.find((p) => p.id === id);
+                  if (preset) {
+                    const next = applyPreset(preset, localParams.enabled);
+                    setLocalParams(next);
+                    onChangeDelayParams(() => next);
+                  }
+                }}
+              />
+              {/* <ToggleSwitch
+                label=""
+                value={localParams.enabled}
+                onToggle={() => {
+                  const next = !localParams.enabled;
+                  setLocalParams((prev) => ({ ...prev, enabled: next }));
+                  onChangeDelayParams((prev) => ({ ...prev, enabled: next }));
+                }}
+              /> */}
+            </View>
+            <View style={styles.knobRow}>
+              <Knob
+                label="FEEDBACK"
+                size="small"
+                type="default"
+                value={localParams.feedback}
+                maxValue={1}
+                minValue={0}
+                continuous
+                onValueChange={(v) =>
+                  setLocalParams((prev) => ({ ...prev, feedback: v }))
+                }
+                onValueCommit={(v) =>
+                  onChangeDelayParams((prev) => ({ ...prev, feedback: v }))
+                }
+              />
+              <Knob
+                label="MIX"
+                size="small"
+                type="default"
+                value={mixFromDryWet(localParams.dryLevel, localParams.wetLevel)}
+                maxValue={1}
+                minValue={0}
+                continuous
+                onValueChange={(v) =>
+                  setLocalParams((prev) => ({
+                    ...prev,
+                    dryLevel: 1 - v,
+                    wetLevel: v,
+                  }))
+                }
+                onValueCommit={(v) =>
+                  onChangeDelayParams((prev) => ({
+                    ...prev,
+                    dryLevel: 1 - v,
+                    wetLevel: v,
+                  }))
+                }
+              />
+            </View>
+            <View style={styles.knobRow}>
+              <Knob
+                label="TIME"
+                size="large"
+                type="default"
+                value={localParams.time}
+                maxValue={1}
+                minValue={0.05}
+                continuous
+                onValueChange={(v) =>
+                  setLocalParams((prev) => ({ ...prev, time: v }))
+                }
+                onValueCommit={(v) =>
+                  onChangeDelayParams((prev) => ({ ...prev, time: v }))
+                }
+              />
+            </View>
+            <View>
+              <ToggleSwitch
+                label="ON/OFF"
+                value={localParams.enabled}
+                onToggle={() => {
+                  const next = !localParams.enabled;
+                  setLocalParams((prev) => ({ ...prev, enabled: next }));
+                  onChangeDelayParams((prev) => ({ ...prev, enabled: next }));
+                }}
+              />
+            </View>
           </View>
         </ImageBackground>
       </Animated.View>
@@ -193,7 +209,7 @@ export function SettingsDrawer({
   );
 }
 
-const DRAWER_WIDTH = 380;
+const DRAWER_WIDTH = 280;
 
 const styles = StyleSheet.create({
   overlay: {
@@ -258,7 +274,7 @@ const styles = StyleSheet.create({
   knobRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-around',
     gap: 16,
   },
 });

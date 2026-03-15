@@ -6,7 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { pedalColors } from '../theme/pedalColors';
 import { darken, lighten } from '../theme/colorUtils';
 
-export type KnobType = 'pitch' | 'mode' | 'beat' | 'volume';
+export type KnobType = 'pitch' | 'mode' | 'beat' | 'volume' | 'default';
+
+export type KnobSize = 'small' | 'medium' | 'large';
 
 interface KnobProps {
   label: string;
@@ -24,6 +26,8 @@ interface KnobProps {
   arcDegrees?: number;
   /** Rotation angle (degrees) for the minimum value; arc sweeps clockwise from here. Default 0 (up). */
   arcStartDegrees?: number;
+  /** Knob size: small (0.75x), medium (1x), large (1.25x). Default "medium". */
+  size?: KnobSize;
 }
 
 const KNOB_COLORS: Record<KnobType, string> = {
@@ -31,7 +35,43 @@ const KNOB_COLORS: Record<KnobType, string> = {
   mode: pedalColors.knobMode,
   beat: pedalColors.knobBeat,
   volume: pedalColors.knobVolume,
+  default: pedalColors.knobDefault,
 };
+
+const BASE = {
+  containerWidth: 100,
+  knobSize: 68,
+  wrapperPadding: 4,
+  wrapperMargin: 10,
+  wrapperBorderRadius: 10,
+  indicatorWidth: 2,
+  indicatorHeight: 14,
+  indicatorTop: 2,
+  indicatorBorderRadius: 1,
+} as const;
+
+const SIZE_SCALE: Record<KnobSize, number> = {
+  small: 0.75,
+  medium: 1,
+  large: 1.45,
+};
+
+function getSizeConfig(size: KnobSize) {
+  const scale = SIZE_SCALE[size];
+  const knobSize = Math.round(BASE.knobSize * scale);
+  return {
+    containerWidth: Math.round(BASE.containerWidth * scale),
+    knobSize,
+    knobBorderRadius: knobSize / 2,
+    wrapperPadding: Math.round(BASE.wrapperPadding * scale),
+    wrapperMargin: Math.round(BASE.wrapperMargin * scale),
+    wrapperBorderRadius: Math.round(BASE.wrapperBorderRadius * scale),
+    indicatorWidth: Math.max(1, Math.round(BASE.indicatorWidth * scale)),
+    indicatorHeight: Math.round(BASE.indicatorHeight * scale),
+    indicatorTop: Math.round(BASE.indicatorTop * scale),
+    indicatorBorderRadius: Math.max(1, Math.round(BASE.indicatorBorderRadius * scale)),
+  };
+}
 
 const SENSITIVITY = 20; // pixels per step (discrete)
 const SENSITIVITY_CONTINUOUS = 150; // pixels for full 0→1 range
@@ -53,7 +93,9 @@ export function Knob({
   minValue = 0,
   arcDegrees,
   arcStartDegrees = -135,
+  size = 'medium',
 }: KnobProps) {
+  const sizeConfig = useMemo(() => getSizeConfig(size), [size]);
   const color = KNOB_COLORS[type];
   const gradientColors = useMemo(() => {
     const s = color;
@@ -166,16 +208,44 @@ export function Knob({
       ? labels[value]
       : String(value + 1);
 
+  const s = sizeConfig;
   return (
-    <View style={[styles.container]}>
+    <View style={[styles.container, { width: s.containerWidth }]}>
       <View style={styles.labelContainer}>
-        <Text style={[styles.label]}>{label}</Text>
+        <Text style={styles.label}>{label}</Text>
       </View>
       <GestureDetector gesture={gesture}>
-        <View style={styles.knobWrapper}>
-          <View style={styles.knobShadow}>
+        <View
+          style={[
+            styles.knobWrapper,
+            {
+              padding: s.wrapperPadding,
+              marginTop: s.wrapperMargin,
+              marginBottom: s.wrapperMargin,
+              borderRadius: s.wrapperBorderRadius,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.knobShadow,
+              {
+                width: s.knobSize,
+                height: s.knobSize,
+                borderRadius: s.knobBorderRadius,
+              },
+            ]}
+          >
             <View
-              style={[styles.knob, { transform: [{ rotate: `${rotation}deg` }] }]}
+              style={[
+                styles.knob,
+                {
+                  width: s.knobSize,
+                  height: s.knobSize,
+                  borderRadius: s.knobBorderRadius,
+                  transform: [{ rotate: `${rotation}deg` }],
+                },
+              ]}
             >
               <LinearGradient
                 colors={[...gradientColors]}
@@ -190,9 +260,26 @@ export function Knob({
                     ? { x: 0, y: 0 }
                     : { x: 1, y: 0 }
                 }
-                style={styles.knobGradient}
+                style={[
+                  styles.knobGradient,
+                  {
+                    width: s.knobSize,
+                    height: s.knobSize,
+                    borderRadius: s.knobBorderRadius,
+                  },
+                ]}
               />
-              <View style={styles.indicator} />
+              <View
+                style={[
+                  styles.indicator,
+                  {
+                    width: s.indicatorWidth,
+                    height: s.indicatorHeight,
+                    top: s.indicatorTop,
+                    borderRadius: s.indicatorBorderRadius,
+                  },
+                ]}
+              />
             </View>
           </View>
         </View>

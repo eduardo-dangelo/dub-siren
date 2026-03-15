@@ -14,6 +14,7 @@ export const pedalColors = {
   knobMode: '#F4C430',    // Yellow
   knobBeat: '#228B22',    // Green
   knobVolume: '#4169E1',  // Royal blue
+  knobDefault: '#3A3A3A', // Dark grayscale (e.g. delay knobs)
 
   /** Controls */
   buttonBlack: '#1A1A1A',
