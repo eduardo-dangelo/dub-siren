@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    boxShadow: '21px 21px 48px 0 rgba(0, 0, 0, 0.9), -21px -21px 48px 0 rgba(255, 255, 255, 0.1)',
+    boxShadow: '21px 21px 48px 0 rgba(0, 0, 0, 0.9), -21px -21px 48px 0 rgba(255, 255, 255, 0.1), inset 2px 2px 4px rgba(42, 42, 42, 0.2), inset -2px -2px 4px rgba(40, 40, 40, 0.5)',
     zIndex: 10,
   },
   enclosureImage: {

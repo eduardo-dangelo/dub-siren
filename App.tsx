@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AudioManager } from 'react-native-audio-api';
@@ -16,17 +16,6 @@ import { pedalColors } from './src/theme/pedalColors';
 import { CableJack } from './src/components/CableJack';
 
 export default function App() {
-  useEffect(() => {
-    // Use playAndRecord + defaultToSpeaker so output routes to device speaker on iOS.
-    AudioManager.setAudioSessionOptions({
-      iosCategory: 'playAndRecord',
-      iosMode: 'default',
-      iosOptions: ['defaultToSpeaker', 'allowBluetoothA2DP'],
-    });
-    // Explicitly activate the session for reliable startup on iOS.
-    void AudioManager.setAudioSessionActivity(true);
-  }, []);
-
   const {
     params,
     setParams,
@@ -43,6 +32,42 @@ export default function App() {
     toneRelease,
     resumeContext,
   } = useDubSiren();
+
+  const resumeContextRef = useRef(resumeContext);
+  resumeContextRef.current = resumeContext;
+
+  useEffect(() => {
+    // playAndRecord + mixWithOthers: device speaker output (defaultToSpeaker) and siren plays on top of Spotify without pausing it.
+    AudioManager.setAudioSessionOptions({
+      iosCategory: 'playAndRecord',
+      iosMode: 'default',
+      iosOptions: ['mixWithOthers', 'defaultToSpeaker', 'allowBluetoothA2DP'],
+    });
+    void AudioManager.setAudioSessionActivity(true);
+    if (Platform.OS === 'ios') {
+      AudioManager.activelyReclaimSession(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      // Android: request non-exclusive focus so we mix with other apps (e.g. Spotify).
+      // Library accepts AudioFocusType on Android; types only declare boolean.
+      AudioManager.observeAudioInterruptions(
+        'gainTransientMayDuck' as unknown as boolean
+      );
+    } else {
+      AudioManager.observeAudioInterruptions(true);
+    }
+    const subscription = AudioManager.addSystemEventListener('interruption', (event) => {
+      if (event.type === 'ended' && event.shouldResume) {
+        void resumeContextRef.current?.();
+      }
+    });
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -78,6 +103,7 @@ export default function App() {
             source={require('./assets/app-bg-one-love.png')}
             resizeMode="cover"
             style={styles.background}
+            imageStyle={styles.expandedBackgroundImage}
           />
         </View>
         <View style={styles.vinylOverlay} pointerEvents="none">
@@ -85,6 +111,7 @@ export default function App() {
             source={require('./assets/app-bg-vinyl.png')}
             resizeMode="cover"
             style={styles.background}
+            imageStyle={styles.expandedBackgroundImage}
           />
         </View>
         <View style={styles.recordsOverlay} pointerEvents="none">
@@ -92,6 +119,7 @@ export default function App() {
             source={require('./assets/app-bg-records.png')}
             resizeMode="cover"
             style={styles.background}
+            imageStyle={styles.expandedBackgroundImage}
           />
         </View>
         <View style={styles.dubOverlay} pointerEvents="none">
@@ -99,6 +127,7 @@ export default function App() {
             source={require('./assets/app-bg-dub.png')}
             resizeMode="cover"
             style={styles.background}
+            imageStyle={styles.expandedBackgroundImage}
           />
         </View>
         <View style={styles.overlay} pointerEvents="none" />
@@ -219,18 +248,25 @@ const styles = StyleSheet.create({
   vinylOverlay: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.05,
+    overflow: 'hidden',
   },
   recordsOverlay: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.18,
+    overflow: 'hidden',
   },
   dubOverlay: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.18,
+    overflow: 'hidden',
   },
   oneLoveOverlay: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.8,
+    overflow: 'hidden',
+  },
+  expandedBackgroundImage: {
+    transform: [{ scale: 1.2 }],
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
