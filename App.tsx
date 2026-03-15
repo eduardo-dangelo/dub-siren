@@ -73,6 +73,34 @@ export default function App() {
         resizeMode="cover"
         style={styles.background}
       >
+        <View style={styles.oneLoveOverlay} pointerEvents="none">
+          <ImageBackground
+            source={require('./assets/app-bg-one-love.png')}
+            resizeMode="cover"
+            style={styles.background}
+          />
+        </View>
+        <View style={styles.vinylOverlay} pointerEvents="none">
+          <ImageBackground
+            source={require('./assets/app-bg-vinyl.png')}
+            resizeMode="cover"
+            style={styles.background}
+          />
+        </View>
+        <View style={styles.recordsOverlay} pointerEvents="none">
+          <ImageBackground
+            source={require('./assets/app-bg-records.png')}
+            resizeMode="cover"
+            style={styles.background}
+          />
+        </View>
+        <View style={styles.dubOverlay} pointerEvents="none">
+          <ImageBackground
+            source={require('./assets/app-bg-dub.png')}
+            resizeMode="cover"
+            style={styles.background}
+          />
+        </View>
         <View style={styles.overlay} pointerEvents="none" />
         <StatusBar style="dark" />
         <Pressable
@@ -188,9 +216,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  vinylOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.05,
+  },
+  recordsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.18,
+  },
+  dubOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.18,
+  },
+  oneLoveOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.8,
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(30, 30, 30, 0.88)',
+    backgroundColor: 'rgba(30, 30, 30, 0.6)',
+    
   },
   landscapeLayout: {
     flex: 1,

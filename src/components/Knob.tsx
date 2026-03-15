@@ -51,7 +51,7 @@ const BASE = {
 } as const;
 
 const SIZE_SCALE: Record<KnobSize, number> = {
-  small: 0.75,
+  small: 0.60,
   medium: 1,
   large: 1.45,
 };

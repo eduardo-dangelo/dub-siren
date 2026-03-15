@@ -104,7 +104,7 @@ export function SettingsDrawer({
         >
           <View style={styles.drawerOverlay} pointerEvents="none" />
           <View style={styles.header}>
-            <Ionicons name="settings-outline" size={18}  style={{ marginRight: 8 }} />
+            <Ionicons name="settings-outline" size={12}  style={{ marginRight: 8 }} />
             <Text style={styles.title}>DELAY SETTINGS</Text>
           </View>
           <View style={styles.content}>
@@ -193,7 +193,7 @@ export function SettingsDrawer({
             </View>
             <View>
               <ToggleSwitch
-                label="ON/OFF"
+                label="OFF/ON"
                 value={localParams.enabled}
                 onToggle={() => {
                   const next = !localParams.enabled;
@@ -244,10 +244,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
   },
   header: {
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    // borderBottomWidth: 1,
+    // borderBottomColor: 'rgba(255,255,255,0.1)',
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
@@ -259,7 +259,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   content: {
-    padding: 20,
+    // paddingVertical: 20,
+    paddingHorizontal: 20,
     // paddingBottom: 40,
     
   },
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
-    marginBottom: 20,
+    marginBottom: 10,
   },
   knobRow: {
     flexDirection: 'row',

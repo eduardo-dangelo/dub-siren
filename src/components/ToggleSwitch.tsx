@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { pedalColors } from '../theme/pedalColors';
 
@@ -9,6 +9,12 @@ interface ToggleSwitchProps {
   onToggle: () => void;
   verticalLabel?: boolean;
 }
+
+const TRACK_WIDTH = 50;
+const TRACK_HEIGHT = 24;
+const THUMB_WIDTH = 30;
+const THUMB_HEIGHT = 18;
+const TRACK_PADDING = 3;
 
 export function ToggleSwitch({ label, value, onToggle, verticalLabel = false }: ToggleSwitchProps) {
   const handlePress = () => {
@@ -25,7 +31,11 @@ export function ToggleSwitch({ label, value, onToggle, verticalLabel = false }: 
             value ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' },
           ]}
         >
-          
+          <View style={styles.barsWrapper}>
+            <View style={[styles.bar]} />
+            <View style={[styles.bar]} />
+            <View style={[styles.bar]} />
+          </View>
         </View>
       </Pressable>
     </View>
@@ -54,25 +64,42 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-90deg' }],
   },
   track: {
-    width: 40,
-    height: 24,
-    borderRadius: 12,
+    width: TRACK_WIDTH,
+    height: TRACK_HEIGHT,
+    borderRadius: TRACK_HEIGHT / 2,
     backgroundColor: '#333',
     justifyContent: 'center',
-    paddingHorizontal: 2,
-    boxShadow: '11px 11px 22px rgba(0, 0, 0, 0.5), -11px -11px 22px rgba(255, 255, 255, 0.2), inset 1px 1px 0 rgba(0, 0, 0, 0.2)',
+    paddingHorizontal: TRACK_PADDING,
+    boxShadow: 'inset 2px 2px 4px rgba(0, 0, 0, 0.3), inset -1px -1px 2px rgba(255, 255, 255, 0.1)',
   },
   thumb: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: THUMB_WIDTH,
+    height: THUMB_HEIGHT,
+    borderRadius: THUMB_HEIGHT / 2,
     backgroundColor: pedalColors.toggleChrome,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 2,
-    boxShadow: 'inset 2px 2px 4px rgba(255, 255, 255, 0.5 ), inset -2px -2px 4px rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 3,
+    boxShadow: 'inset 2px 2px 4px rgba(255, 255, 255, 0.4), inset -1px -1px 2px rgba(0, 0, 0, 0.35)',
     zIndex: 10,
   },
+  barsWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: 14,
+    height: 14,
+  },
+  bar: {
+    width: 2.5,
+    height: 14,
+    borderRadius: 1.25,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    boxShadow: 'inset -1px -1px 2px rgba(0, 0, 0, 0.15), inset 1px 1px 1px rgba(255, 255, 255, 0.15), 1px 1px 1px rgba(0, 0, 0, 0.1)',
+  },
+
 });
