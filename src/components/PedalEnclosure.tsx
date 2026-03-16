@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    // borderWidth: 1,
   },
   screwBase: {
     width: 10,

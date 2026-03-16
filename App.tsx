@@ -14,6 +14,8 @@ import { ToggleSwitch } from './src/components/ToggleSwitch';
 import { useDubSiren } from './src/hooks/useDubSiren';
 import { pedalColors } from './src/theme/pedalColors';
 import { CableJack } from './src/components/CableJack';
+import { NowPlayingPopover } from './src/components/NowPlayingPopover';
+import { useSpotifyPlayback } from './src/hooks/useSpotifyPlayback';
 
 export default function App() {
   const {
@@ -71,6 +73,7 @@ export default function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const spotify = useSpotifyPlayback();
 
   const hasResumedRef = useRef(false);
   const handleFirstInteraction = useCallback(async () => {
@@ -148,73 +151,73 @@ export default function App() {
         </Pressable>
         <PedalEnclosure>
           <View style={styles.landscapeLayout}>
+            
             <View style={styles.rightColumn}>
-            <Knob
-              label="PITCH"
-              type="pitch"
-              value={params.pitch}
-              maxValue={3}
-              onValueChange={(v) => setParams({ pitch: v })}
-              labels={['1', '2', '3', '4']}
-              // verticalLabelx
-            />
-            <Knob
-              label="MODE"
-              type="mode"
-              value={params.mode}
-              maxValue={3}
-              onValueChange={(v) => setParams({ mode: v })}
-              labels={['1', '2', '3', '4']}
-            />
-            <Knob
-              label="BEAT"
-              type="beat"
-              value={params.beat}
-              maxValue={3}
-              // continuous
-              onValueChange={(v) => setParams({ beat: v })}
-              labels={['0', '1', '2', '3']}
-            />
-            <Knob
-              label="VOL"
-              type="volume"
-              value={params.volume}
-              maxValue={6}
-              minValue={0}
-              continuous
-              arcDegrees={135}
-              arcStartDegrees={0}
-              onValueChange={(v) => setParams({ volume: v })}
-            />
+              <Knob
+                label="PITCH"
+                type="pitch"
+                value={params.pitch}
+                maxValue={3}
+                onValueChange={(v) => setParams({ pitch: v })}
+                labels={['1', '2', '3', '4']}
+                // verticalLabelx
+              />
+              <Knob
+                label="MODE"
+                type="mode"
+                value={params.mode}
+                maxValue={3}
+                onValueChange={(v) => setParams({ mode: v })}
+                labels={['1', '2', '3', '4']}
+              />
+              <Knob
+                label="BEAT"
+                type="beat"
+                value={params.beat}
+                maxValue={3}
+                // continuous
+                onValueChange={(v) => setParams({ beat: v })}
+                labels={['0', '1', '2', '3']}
+              />
+              <Knob
+                label="VOL"
+                type="volume"
+                value={params.volume}
+                maxValue={6}
+                minValue={0}
+                continuous
+                arcDegrees={135}
+                arcStartDegrees={0}
+                onValueChange={(v) => setParams({ volume: v })}
+              />
             </View>
+            
             <View style={styles.leftColumn}>
-            <PowerLed label="POWER" isOn={isPlaying} pulsePeriodMs={beatPeriodMs ?? undefined} /> 
-            <SirenButton
-              label="HOLD"
-              onPressIn={momentaryPress}
-              onPressOut={momentaryRelease}
-              // verticalLabel
-            />           
-            <SirenButton
-              label="SIREN"
-              onPressIn={sirenPress}
-              onPressOut={sirenRelease}
-              // verticalLabel
-            />
-            <SirenButton
-              label="TONE"
-              onPressIn={tonePress}
-              onPressOut={toneRelease}
-              // verticalLabel
-            />
-            <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} />
+              <PowerLed label="POWER" isOn={isPlaying} pulsePeriodMs={beatPeriodMs ?? undefined} /> 
+              <SirenButton
+                label="HOLD"
+                onPressIn={momentaryPress}
+                onPressOut={momentaryRelease}
+                // verticalLabel
+              />           
+              <SirenButton
+                label="SIREN"
+                onPressIn={sirenPress}
+                onPressOut={sirenRelease}
+                // verticalLabel
+              />
+              <SirenButton
+                label="TONE"
+                onPressIn={tonePress}
+                onPressOut={toneRelease}
+                // verticalLabel
+              />
+              <ToggleSwitch label="TRIGGER" value={isPlaying} onToggle={trigger} />
             </View>
+            <NowPlayingPopover spotify={spotify} />
           </View>
         </PedalEnclosure>
-        {/* <View style={styles.jackBottom}>
-          <CableJack variant="input" orientation="bottom" />
-          <CableJack variant="power" orientation="bottom" />
-        </View> */}
+
         <SettingsDrawer
           visible={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
@@ -276,6 +279,7 @@ const styles = StyleSheet.create({
   landscapeLayout: {
     flex: 1,
     flexDirection: 'column',
+    // justifyContent: 'flex-start',
     justifyContent: 'space-between',
     alignItems: 'stretch',
     width: '100%',
@@ -286,12 +290,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+    // borderWidth: 1,
   },
   rightColumn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+    // borderWidth: 1,
   },
   jacksLeft: {
     position: 'absolute',

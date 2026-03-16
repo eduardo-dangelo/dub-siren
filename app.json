@@ -3,6 +3,7 @@
     "name": "dub-siren",
     "slug": "dub-siren",
     "version": "1.0.0",
+    "scheme": "dubsiren",
     "platforms": [
       "ios",
       "android"
