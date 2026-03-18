@@ -38,4 +38,5 @@ When music is playing in the Spotify app, you can connect and control it from Du
      `.env` is ignored by git; there is also a `.env.example` you can copy from on new machines.
    - Alternatively, you can still pass it when running: `EXPO_PUBLIC_SPOTIFY_CLIENT_ID=... npx expo start`.
 4. Rebuild the app and open it (`npx expo run:ios` / `npx expo run:android`). A “Connect Spotify” control appears when configured; tap it to authorize with Spotify. Once connected, the now-playing bar shows the current track and transport controls.
+   - **iOS:** If you see "Spotify is not installed" but Spotify is installed, run `npx expo prebuild --clean` then `npx expo run:ios` to regenerate the native project with the correct Info.plist (LSApplicationQueriesSchemes).
 5. **Token swap/refresh (optional):** For long-lived sessions you can run a small backend that implements [token swap and refresh](https://github.com/cjam/react-native-spotify-remote/tree/main/example-server). Set `EXPO_PUBLIC_SPOTIFY_TOKEN_SWAP_URL` and `EXPO_PUBLIC_SPOTIFY_TOKEN_REFRESH_URL` to your endpoints. Without them, auth uses the implicit flow (you may need to reconnect after some time).

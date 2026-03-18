@@ -31,13 +31,25 @@ export interface UseSpotifyPlaybackResult {
   previous: () => Promise<void>;
 }
 
-/** True when the SDK error indicates Spotify app is not running / not findable. */
+/**
+ * True when the SDK error indicates Spotify app is definitively not installed.
+ * Returns false for errors that can be false positives (e.g. "not installed" when
+ * LSApplicationQueriesSchemes is missing) so the Connect button stays visible.
+ */
 function isSpotifyAppUnavailableError(message: string): boolean {
   const lower = message.toLowerCase();
+  // Never hide Connect for these—often false positives when config is wrong.
+  if (
+    lower.includes('connection refused') ||
+    lower.includes('connection attempt failed') ||
+    lower.includes('not installed') ||
+    lower.includes('does not appear to be installed')
+  ) {
+    return false;
+  }
   return (
     lower.includes('couldnotfindspotifyapp') ||
     lower.includes('could not find spotify') ||
-    lower.includes('spotify app not') ||
     lower.includes('spotify is not running')
   );
 }
@@ -120,6 +132,7 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
       return;
     }
     setError(null);
+    setIsSpotifyAppUnavailable(false);
     setIsConnecting(true);
     try {
       const session = await auth.authorize(spotifyConfig);

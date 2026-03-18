@@ -153,6 +153,7 @@ export function useDubSiren(): UseDubSirenReturn {
   const delayGain0Ref = useRef<GainNode | null>(null);
   const mainSourceRef = useRef<BufferSourceNode | null>(null);
   const mainAllTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const momentaryHoldRef = useRef(false);
   const sirenStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const toneStateRef = useRef<ButtonPlaybackState>(makeInitialButtonState());
   const paramsRef = useRef(params);
@@ -398,7 +399,7 @@ export function useDubSiren(): UseDubSirenReturn {
   }, [setPlayingFalseIfNothingElse, stopSingleButton]);
 
   const startMainSample = useCallback(
-    async (currentParams: DubSirenParams) => {
+    async (currentParams: DubSirenParams, options?: { fromMomentary?: boolean }) => {
       if (__DEV__) console.log('[DubSiren] startMainSample', { pitch: currentParams.pitch, mode: currentParams.mode, beat: currentParams.beat });
       await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
@@ -421,6 +422,13 @@ export function useDubSiren(): UseDubSirenReturn {
       const buffer = await getSampleBuffer(key);
       if (!buffer) {
         if (__DEV__) console.warn('[DubSiren] startMainSample: no buffer for key', key);
+        return;
+      }
+
+      // Another in-flight call may have started; or we were cancelled (HOLD released during load)
+      if (mainSourceRef.current) return;
+      if (options?.fromMomentary && !momentaryHoldRef.current) {
+        if (__DEV__) console.log('[DubSiren] startMainSample: HOLD released during load, abort');
         return;
       }
 
@@ -648,6 +656,15 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
+      // If user released during load, abort
+      if (!stateRef.current.isHeld) {
+        if (__DEV__) {
+          console.log(`[DubSiren] beginButtonSequence(${kind}): released during load, abort`);
+        }
+        stateRef.current = makeInitialButtonState();
+        return;
+      }
+
       const allSource = createBufferSource(ctx);
       allSource.buffer = buffer;
       allSource.loop = false;
@@ -817,13 +834,15 @@ export function useDubSiren(): UseDubSirenReturn {
 
   const momentaryPress = useCallback(async () => {
     if (__DEV__) console.log('[DubSiren] momentaryPress (HOLD) called');
+    momentaryHoldRef.current = true;
     await resumeContext();
-    startMainSample(paramsRef.current).catch((e) => {
+    startMainSample(paramsRef.current, { fromMomentary: true }).catch((e) => {
       if (__DEV__) console.warn('[DubSiren] momentaryPress startMainSample failed', e);
     });
   }, [resumeContext, startMainSample]);
 
   const momentaryRelease = useCallback(() => {
+    momentaryHoldRef.current = false;
     stopMainSample();
   }, [stopMainSample]);
 

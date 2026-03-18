@@ -115,7 +115,7 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
       {error != null && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText} numberOfLines={1}>
-            {'Open Spotify to connect'}
+            {'Unable to connect. Make sure Spotify is open and try again.'}
           </Text>
         </View>
       )}
@@ -274,9 +274,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    // borderWidth: 1,
-    // gap: 8,
-    // flex: 1,
     marginTop: 10,
   },
   errorText: {
