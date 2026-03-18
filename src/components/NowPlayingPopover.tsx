@@ -57,12 +57,6 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
     }).start();
   }, [anyBarVisible, scaleX]);
 
-  useEffect(() => {
-    if (canConnect && hasSeenPlayerState) {
-      connect();
-    }
-  }, [canConnect, hasSeenPlayerState]);
-
   const animatedBarStyle = {
     transform: [{ scaleX }],
   };

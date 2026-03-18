@@ -122,15 +122,20 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
   const subscriptionRef = useRef<{ remove: () => void } | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
+  const isConnectingRef = useRef(false);
+
   const connect = useCallback(async () => {
     if (!NATIVE || !isSpotifyConfigured) {
       setError('Spotify is not configured (set EXPO_PUBLIC_SPOTIFY_CLIENT_ID)');
       return;
     }
     if (!hasSpotifyApp) {
-      // Spotify app is not installed or unavailable; silently bail.
       return;
     }
+    if (isConnectingRef.current) {
+      return;
+    }
+    isConnectingRef.current = true;
     setError(null);
     setIsSpotifyAppUnavailable(false);
     setIsConnecting(true);
@@ -152,12 +157,15 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
         setIsSpotifyAppUnavailable(true);
       }
     } finally {
+      isConnectingRef.current = false;
       setIsConnecting(false);
     }
-  }, []);
+  }, [hasSpotifyApp]);
 
   const disconnect = useCallback(async () => {
     if (!NATIVE) return;
+    isConnectingRef.current = false;
+    setIsConnecting(false);
     try {
       subscriptionRef.current?.remove();
       subscriptionRef.current = null;
@@ -168,6 +176,14 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
     setIsConnected(false);
     setPlayerState(null);
   }, []);
+
+  // Safety: ensure connecting state is cleared when we have an error
+  useEffect(() => {
+    if (error != null) {
+      isConnectingRef.current = false;
+      setIsConnecting(false);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!NATIVE || !isConnected) return;
@@ -230,12 +246,14 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
 
     const bootstrap = async () => {
       try {
-        // Detect whether the Spotify app is installed (covers the \"no app\" case).
-        const canOpen = await Linking.canOpenURL('spotify://');
-        if (cancelled) return;
-        setHasSpotifyApp(canOpen);
-        if (!canOpen) {
-          return;
+        // Detect whether the Spotify app is installed. On iOS without LSApplicationQueriesSchemes,
+        // canOpenURL returns false even when Spotify is installed—we keep hasSpotifyApp true so
+        // the auth popover (in-app browser) is used instead of opening the Spotify app.
+        if (Platform.OS === 'android') {
+          const canOpen = await Linking.canOpenURL('spotify://');
+          if (cancelled) return;
+          setHasSpotifyApp(canOpen);
+          if (!canOpen) return;
         }
 
         // Try existing session first so the user doesn't have to tap Connect again.

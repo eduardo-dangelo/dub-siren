@@ -19,10 +19,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.dub-siren",
-      "infoPlist": {
-        "LSApplicationQueriesSchemes": ["spotify"]
-      }
+      "bundleIdentifier": "com.anonymous.dub-siren"
     },
     "android": {
       "adaptiveIcon": {
