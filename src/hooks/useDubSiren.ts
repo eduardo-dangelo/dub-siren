@@ -45,7 +45,7 @@ interface ButtonPlaybackState {
 }
 
 /** Minimum time (ms) the siren/tone _ALL sample must play before _END is allowed. If released sooner, _ALL keeps playing until this time then _END plays. */
-const MIN_SIREN_TONE_MS = 2000;
+const MIN_SIREN_TONE_MS = 700;
 /** Power LED pulse period (ms) per beat index (0–3): beat 0 = 1s, 1 = 0.5s, 2 = 0.25s, 3 = 0.25s. */
 const BEAT_PULSE_MS: Record<number, number> = { 0: 600, 1: 300, 2: 150, 3: 3000 };
 

@@ -91,7 +91,7 @@ const SAMPLE_MODULES: Record<string, SampleSource> = {
   'PITCH_1_ MODE_1_ BEAT_4_TONE_INTRO.wav': require('./samples/PITCH_1_ MODE_1_ BEAT_4_TONE_INTRO.wav'),
   'PITCH_1_ MODE_1_ BEAT_4_TONE_LOOP.wav': require('./samples/PITCH_1_ MODE_1_ BEAT_4_TONE_LOOP.wav'),
   'PITCH_1_ MODE_1_ BEAT_4_TONE_ALL.wav': require('./samples/PITCH_1_ MODE_1_ BEAT_4_TONE_ALL.wav'),
-  'PITCH_1_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_1_ MODE_1_ BEAT_4_TONE_END.wav'),
+  'PITCH_1_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_1_ MODE_1_ BEAT_4_TONE_END_ALT.wav'),
   'PITCH_2_ MODE_1_ BEAT_4_SIREN_INTRO.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_SIREN_INTRO.wav'),
   'PITCH_2_ MODE_1_ BEAT_4_SIREN_LOOP.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_SIREN_LOOP.wav'),
   'PITCH_2_ MODE_1_ BEAT_4_SIREN_ALL.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_SIREN_ALL.wav'),
@@ -99,7 +99,7 @@ const SAMPLE_MODULES: Record<string, SampleSource> = {
   'PITCH_2_ MODE_1_ BEAT_4_TONE_INTRO.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_TONE_INTRO.wav'),
   'PITCH_2_ MODE_1_ BEAT_4_TONE_LOOP.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_TONE_LOOP.wav'),
   'PITCH_2_ MODE_1_ BEAT_4_TONE_ALL.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_TONE_ALL.wav'),
-  'PITCH_2_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_TONE_END.wav'),
+  'PITCH_2_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_2_ MODE_1_ BEAT_4_TONE_END_ALT.wav'),
   'PITCH_3_ MODE_1_ BEAT_4_SIREN_INTRO.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_SIREN_INTRO.wav'),
   'PITCH_3_ MODE_1_ BEAT_4_SIREN_LOOP.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_SIREN_LOOP.wav'),
   'PITCH_3_ MODE_1_ BEAT_4_SIREN_ALL.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_SIREN_ALL.wav'),
@@ -107,7 +107,7 @@ const SAMPLE_MODULES: Record<string, SampleSource> = {
   'PITCH_3_ MODE_1_ BEAT_4_TONE_INTRO.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_TONE_INTRO.wav'),
   'PITCH_3_ MODE_1_ BEAT_4_TONE_LOOP.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_TONE_LOOP.wav'),
   'PITCH_3_ MODE_1_ BEAT_4_TONE_ALL.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_TONE_ALL.wav'),
-  'PITCH_3_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_TONE_END.wav'),
+  'PITCH_3_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_3_ MODE_1_ BEAT_4_TONE_END_ALT.wav'),
   'PITCH_4_ MODE_1_ BEAT_4_SIREN_INTRO.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_SIREN_INTRO.wav'),
   'PITCH_4_ MODE_1_ BEAT_4_SIREN_LOOP.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_SIREN_LOOP.wav'),
   'PITCH_4_ MODE_1_ BEAT_4_SIREN_ALL.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_SIREN_ALL.wav'),
@@ -115,7 +115,7 @@ const SAMPLE_MODULES: Record<string, SampleSource> = {
   'PITCH_4_ MODE_1_ BEAT_4_TONE_INTRO.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_TONE_INTRO.wav'),
   'PITCH_4_ MODE_1_ BEAT_4_TONE_LOOP.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_TONE_LOOP.wav'),
   'PITCH_4_ MODE_1_ BEAT_4_TONE_ALL.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_TONE_ALL.wav'),
-  'PITCH_4_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_TONE_END.wav'),
+  'PITCH_4_ MODE_1_ BEAT_4_TONE_END.wav': require('./samples/PITCH_4_ MODE_1_ BEAT_4_TONE_END_ALT.wav'),
 } as const;
 
 const sampleCache = new Map<string, Promise<AudioBuffer>>();
