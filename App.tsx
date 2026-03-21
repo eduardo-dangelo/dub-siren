@@ -156,6 +156,7 @@ export default function App() {
               <Knob
                 label="PITCH"
                 type="pitch"
+                invertVertical
                 value={params.pitch}
                 maxValue={3}
                 onValueChange={(v) => setParams({ pitch: v })}
@@ -165,6 +166,7 @@ export default function App() {
               <Knob
                 label="MODE"
                 type="mode"
+                invertVertical
                 value={params.mode}
                 maxValue={3}
                 onValueChange={(v) => setParams({ mode: v })}
@@ -173,6 +175,7 @@ export default function App() {
               <Knob
                 label="BEAT"
                 type="beat"
+                invertVertical
                 value={params.beat}
                 maxValue={3}
                 // continuous
@@ -182,6 +185,7 @@ export default function App() {
               <Knob
                 label="VOL"
                 type="volume"
+                invertVertical
                 value={params.volume}
                 maxValue={6}
                 minValue={0}

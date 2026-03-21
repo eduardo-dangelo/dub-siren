@@ -28,6 +28,8 @@ interface KnobProps {
   arcStartDegrees?: number;
   /** Knob size: small (0.75x), medium (1x), large (1.25x). Default "medium". */
   size?: KnobSize;
+  /** Invert vertical drag contribution so down + right increases value. */
+  invertVertical?: boolean;
 }
 
 const KNOB_COLORS: Record<KnobType, string> = {
@@ -94,6 +96,7 @@ export function Knob({
   arcDegrees,
   arcStartDegrees = -135,
   size = 'medium',
+  invertVertical = false,
 }: KnobProps) {
   const sizeConfig = useMemo(() => getSizeConfig(size), [size]);
   const color = KNOB_COLORS[type];
@@ -160,6 +163,14 @@ export function Knob({
     onValueCommit?.(next);
   }, [value, maxValue, onValueChange, onValueCommit]);
 
+  const getEffectiveDelta = useCallback(
+    (translationX: number, translationY: number) => {
+      const vertical = invertVertical ? translationY : -translationY;
+      return vertical + translationX;
+    },
+    [invertVertical]
+  );
+
   const gesture = useMemo(() => {
     if (continuous) {
       return Gesture.Pan()
@@ -169,7 +180,7 @@ export function Knob({
           startValueRef.current = valueRef.current;
         })
         .onUpdate((e) => {
-          const effectiveDelta = -e.translationY + e.translationX;
+          const effectiveDelta = getEffectiveDelta(e.translationX, e.translationY);
           const delta = effectiveDelta / SENSITIVITY_CONTINUOUS;
           const newValue = startValueRef.current + delta * valueRange;
           reportValueContinuous(newValue);
@@ -190,7 +201,7 @@ export function Knob({
         startValueRef.current = valueRef.current;
       })
       .onUpdate((e) => {
-        const effectiveDelta = -e.translationY + e.translationX;
+        const effectiveDelta = getEffectiveDelta(e.translationX, e.translationY);
         const steps = Math.round(effectiveDelta / SENSITIVITY);
         const newValue = startValueRef.current + steps;
         reportValueDiscrete(newValue);
@@ -200,7 +211,7 @@ export function Knob({
       });
 
     return Gesture.Exclusive(tap, pan);
-  }, [continuous, valueRange, handleTap, handleCommit, reportValueDiscrete, reportValueContinuous]);
+  }, [continuous, valueRange, handleTap, handleCommit, reportValueDiscrete, reportValueContinuous, getEffectiveDelta]);
 
   const displayLabel = continuous
     ? `${Math.round(value * 9)}`
