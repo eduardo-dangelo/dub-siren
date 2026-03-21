@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "postinstall": "patch-package && node scripts/patch-spotify-podspec.js",
+    "postinstall": "patch-package && node scripts/patch-spotify-podspec.js && node scripts/ensure-rn-audio-api-binaries.js",
     "deploy-landing": "gh-pages -d landing -b gh-pages"
   },
   "dependencies": {

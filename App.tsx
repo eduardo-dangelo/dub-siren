@@ -39,28 +39,26 @@ export default function App() {
   resumeContextRef.current = resumeContext;
 
   useEffect(() => {
-    // playAndRecord + mixWithOthers: device speaker output (defaultToSpeaker) and siren plays on top of Spotify without pausing it.
+    // Playback (not playAndRecord): sample-only output. playAndRecord can trigger voice/earpiece-style routing and narrow Spotify when mixed.
+    // mixWithOthers keeps Spotify playing; allowBluetoothA2DP preserves high-quality BT music. defaultToSpeaker only applies to playAndRecord on iOS.
+    // If this still misbehaves on a device/OS combo, prefer a targeted AVAudioSession tweak or an upstream react-native-audio-api report over replacing the engine.
+    // mixWithOthers: mix with Spotify. Omit allowBluetoothA2DP — combined with playback+mix it can
+    // make setCategory fail on some iPhone/iPad OS builds; Bluetooth music routing still works.
     AudioManager.setAudioSessionOptions({
-      iosCategory: 'playAndRecord',
+      iosCategory: 'playback',
       iosMode: 'default',
-      iosOptions: ['mixWithOthers', 'defaultToSpeaker', 'allowBluetoothA2DP'],
+      iosOptions: ['mixWithOthers'],
     });
     void AudioManager.setAudioSessionActivity(true);
     if (Platform.OS === 'ios') {
-      AudioManager.activelyReclaimSession(true);
+      // SilenceSecondaryAudioHint + polling: when Spotify is playing, iOS often sets secondaryAudioShouldBeSilencedHint; the library then calls onInterruptionBegin and the siren goes silent. Playback + mixWithOthers is enough to coexist without this reclaim path.
+      AudioManager.activelyReclaimSession(false);
     }
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      // Android: request non-exclusive focus so we mix with other apps (e.g. Spotify).
-      // Library accepts AudioFocusType on Android; types only declare boolean.
-      AudioManager.observeAudioInterruptions(
-        'gainTransientMayDuck' as unknown as boolean
-      );
-    } else {
-      AudioManager.observeAudioInterruptions(true);
-    }
+    // Android: need audio focus for the engine to output on many devices. (observe(false) left the siren inaudible.) iOS: route interruption ended → resumeContext.
+    AudioManager.observeAudioInterruptions(true);
     const subscription = AudioManager.addSystemEventListener('interruption', (event) => {
       if (event.type === 'ended' && event.shouldResume) {
         void resumeContextRef.current?.();

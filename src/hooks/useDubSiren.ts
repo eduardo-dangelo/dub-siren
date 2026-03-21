@@ -89,6 +89,20 @@ function createBufferSource(ctx: AudioContext): BufferSourceNode {
   return ctx.createBufferSource() as unknown as BufferSourceNode;
 }
 
+/**
+ * Activate the native session before touching the AudioContext. Starting resume() first can leave
+ * AVAudioSession in a state where setCategory fails; the native bridge then rejects with
+ * SessionActivationError and empty error meta (configureAudioSession returned false without NSError).
+ * After the session is active, resume the context (may need a prior user gesture on strict iOS—use
+ * the root Pressable tap once if HOLD alone stays silent).
+ */
+async function ensureSessionActiveAndContextRunning(ctx: AudioContext): Promise<void> {
+  await AudioManager.setAudioSessionActivity(true);
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+}
+
 /** Main VOL knob max (UI sends 0..VOLUME_KNOB_MAX). */
 const VOLUME_KNOB_MAX = 6;
 const VOLUME_MIN_DB = -10;
@@ -177,11 +191,8 @@ export function useDubSiren(): UseDubSirenReturn {
   }, []);
 
   const resumeContext = useCallback(async () => {
-    await AudioManager.setAudioSessionActivity(true);
     const ctx = getAudioContext();
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
+    await ensureSessionActiveAndContextRunning(ctx);
   }, [getAudioContext]);
 
   const resetAudioContext = useCallback(() => {
@@ -401,11 +412,8 @@ export function useDubSiren(): UseDubSirenReturn {
   const startMainSample = useCallback(
     async (currentParams: DubSirenParams, options?: { fromMomentary?: boolean }) => {
       if (__DEV__) console.log('[DubSiren] startMainSample', { pitch: currentParams.pitch, mode: currentParams.mode, beat: currentParams.beat });
-      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+      await ensureSessionActiveAndContextRunning(ctx);
 
       if (mainSourceRef.current) {
         if (__DEV__) console.log('[DubSiren] startMainSample: already playing, skip');
@@ -487,11 +495,8 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
-      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+      await ensureSessionActiveAndContextRunning(ctx);
       const chainInput = ensureOutputChain(ctx);
       const gain = getOrCreateButtonGain(ctx, chainInput, kind);
       const variants = BUTTON_VARIANTS[kind];
@@ -591,11 +596,8 @@ export function useDubSiren(): UseDubSirenReturn {
         return;
       }
 
-      await AudioManager.setAudioSessionActivity(true);
       const ctx = getAudioContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+      await ensureSessionActiveAndContextRunning(ctx);
       const chainInput = ensureOutputChain(ctx);
       const variants = BUTTON_VARIANTS[kind];
       const stateRef = kind === 'siren' ? sirenStateRef : toneStateRef;
