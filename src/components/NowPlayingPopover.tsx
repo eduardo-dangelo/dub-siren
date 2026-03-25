@@ -1,8 +1,91 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { pedalColors } from '../theme/pedalColors';
-import type { UseSpotifyPlaybackResult } from '../hooks/useSpotifyPlayback';
+import type { NowPlayingTrack, UseSpotifyPlaybackResult } from '../hooks/useSpotifyPlayback';
+
+/** Set inner value to `true` in dev to preview the now-playing bar without Spotify. */
+const USE_MOCK_NOW_PLAYING = __DEV__ && false;
+
+const MOCK_TRACK: NowPlayingTrack = {
+  name: 'Chase the Devil',
+  artist: 'Max Romeo',
+  album: 'War Ina Babylon',
+  imageUri: null,
+};
+
+interface NowPlayingBarProps {
+  track: NowPlayingTrack;
+  isPlaying: boolean;
+  animatedBarStyle: { transform: { scaleX: Animated.Value }[] };
+  onPrevious: () => void;
+  onNext: () => void;
+  play: () => void;
+  pause: () => void;
+}
+
+function NowPlayingBar({
+  track,
+  isPlaying,
+  animatedBarStyle,
+  onPrevious,
+  onNext,
+  play,
+  pause,
+}: NowPlayingBarProps) {
+  return (
+    <Animated.View style={[styles.bar, animatedBarStyle]}>
+      <View style={styles.artwork}>
+        {track.imageUri ? (
+          <Image source={{ uri: track.imageUri }} style={styles.artworkImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.artworkPlaceholder}>
+            <Image
+              source={require('../../assets/spotify-logo.png')}
+              style={styles.spotifyLogoLarge}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+      </View>
+      <View style={styles.info}>
+        <Text style={styles.title} numberOfLines={1}>
+          {track.name}
+        </Text>
+        <Text style={styles.artist} numberOfLines={1}>
+          {track.artist || track.album || 'Spotify'}
+        </Text>
+      </View>
+      <View style={styles.controls}>
+        <Pressable
+          style={styles.controlButton}
+          onPress={onPrevious}
+          accessibilityLabel="Previous track"
+        >
+          <Ionicons name="play-skip-back" size={22} color={pedalColors.toggleChrome} />
+        </Pressable>
+        <Pressable
+          style={styles.controlButton}
+          onPress={isPlaying ? pause : play}
+          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        >
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={26}
+            color={pedalColors.toggleChrome}
+          />
+        </Pressable>
+        <Pressable
+          style={styles.controlButton}
+          onPress={onNext}
+          accessibilityLabel="Next track"
+        >
+          <Ionicons name="play-skip-forward" size={22} color={pedalColors.toggleChrome} />
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
 
 interface NowPlayingPopoverProps {
   spotify: UseSpotifyPlaybackResult;
@@ -27,8 +110,9 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
     pause,
     next,
     previous,
-    ...rest
   } = spotify;
+
+  const [mockIsPlaying, setMockIsPlaying] = useState(true);
 
   const canConnect =
     hasSpotifyApp && isSpotifyConfigured && !isConnected && !isSpotifyAppUnavailable;
@@ -41,12 +125,13 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
   const showConnectedAwaitingBar =
     isConnectedAwaitingPlayback && error == null && !showConnectPrompt;
   const showNowPlayingBar = visible && !!track;
-  const anyBarVisible =
-    showConfigBar ||
-    showConnectPrompt ||
-    showErrorBar ||
-    showConnectedAwaitingBar ||
-    showNowPlayingBar;
+  const anyBarVisible = USE_MOCK_NOW_PLAYING
+    ? true
+    : showConfigBar ||
+      showConnectPrompt ||
+      showErrorBar ||
+      showConnectedAwaitingBar ||
+      showNowPlayingBar;
 
   const scaleX = useRef(
     new Animated.Value(anyBarVisible ? 1 : 0),
@@ -67,6 +152,22 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
   const animatedBarStyle = {
     transform: [{ scaleX }],
   };
+
+  if (USE_MOCK_NOW_PLAYING) {
+    return (
+      <View style={styles.container} pointerEvents="box-none">
+        <NowPlayingBar
+          track={MOCK_TRACK}
+          isPlaying={mockIsPlaying}
+          animatedBarStyle={animatedBarStyle}
+          onPrevious={() => {}}
+          onNext={() => {}}
+          play={() => setMockIsPlaying(true)}
+          pause={() => setMockIsPlaying(false)}
+        />
+      </View>
+    );
+  }
 
   // If the Spotify app is not installed/available, hide the popover entirely.
   if (!hasSpotifyApp) {
@@ -146,60 +247,15 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
       )}
 
       {visible && track && (
-        <Animated.View style={[styles.bar, animatedBarStyle]}>
-          <View style={styles.artwork}>
-            {track.imageUri ? (
-              <Image
-                source={{ uri: track.imageUri }}
-                style={styles.artworkImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.artworkPlaceholder}>
-                <Image
-                  source={require('../../assets/spotify-logo.png')}
-                  style={styles.spotifyLogoLarge}
-                  resizeMode="contain"
-                />
-              </View>
-            )}
-          </View>
-          <View style={styles.info}>
-            <Text style={styles.title} numberOfLines={1}>
-              {track.name}
-            </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {track.artist || track.album || 'Spotify'}
-            </Text>
-          </View>
-          <View style={styles.controls}>
-            <Pressable
-              style={styles.controlButton}
-              onPress={previous}
-              accessibilityLabel="Previous track"
-            >
-              <Ionicons name="play-skip-back" size={22} color={pedalColors.toggleChrome} />
-            </Pressable>
-            <Pressable
-              style={styles.controlButton}
-              onPress={isPlaying ? pause : play}
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-            >
-              <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
-                size={26}
-                color={pedalColors.toggleChrome}
-              />
-            </Pressable>
-            <Pressable
-              style={styles.controlButton}
-              onPress={next}
-              accessibilityLabel="Next track"
-            >
-              <Ionicons name="play-skip-forward" size={22} color={pedalColors.toggleChrome} />
-            </Pressable>
-          </View>
-        </Animated.View>
+        <NowPlayingBar
+          track={track}
+          isPlaying={isPlaying}
+          animatedBarStyle={animatedBarStyle}
+          onPrevious={previous}
+          onNext={next}
+          play={play}
+          pause={pause}
+        />
       )}
     </View>
   );
