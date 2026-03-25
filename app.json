@@ -19,7 +19,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.dub-siren"
+      "bundleIdentifier": "com.anonymous.dub-siren",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "spotify",
+          "spotify-action"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +43,8 @@
       "package": "com.anonymous.dubsiren"
     },
     "plugins": [
-      "react-native-audio-api"
+      "react-native-audio-api",
+      "./plugins/withSpotifyUrlHandler.js"
     ]
   }
 }

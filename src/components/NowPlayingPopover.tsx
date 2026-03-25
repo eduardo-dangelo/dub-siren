@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { pedalColors } from '../theme/pedalColors';
-import type { NowPlayingTrack, UseSpotifyPlaybackResult } from '../hooks/useSpotifyPlayback';
+import type { UseSpotifyPlaybackResult } from '../hooks/useSpotifyPlayback';
 
 interface NowPlayingPopoverProps {
   spotify: UseSpotifyPlaybackResult;
@@ -11,6 +11,7 @@ interface NowPlayingPopoverProps {
 export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
   const {
     visible,
+    isConnectedAwaitingPlayback,
     track,
     isPlaying,
     isConnecting,
@@ -37,9 +38,15 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
 
   const showConfigBar = !isSpotifyConfigured;
   const showErrorBar = error != null && !showConnectPrompt;
+  const showConnectedAwaitingBar =
+    isConnectedAwaitingPlayback && error == null && !showConnectPrompt;
   const showNowPlayingBar = visible && !!track;
   const anyBarVisible =
-    showConfigBar || showConnectPrompt || showErrorBar || showNowPlayingBar;
+    showConfigBar ||
+    showConnectPrompt ||
+    showErrorBar ||
+    showConnectedAwaitingBar ||
+    showNowPlayingBar;
 
   const scaleX = useRef(
     new Animated.Value(anyBarVisible ? 1 : 0),
@@ -66,7 +73,13 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
     return null;
   }
 
-  if (!visible && !error && !showConnectPrompt && !isSpotifyConfigured) {
+  if (
+    !visible &&
+    !error &&
+    !showConnectPrompt &&
+    !isSpotifyConfigured &&
+    !showConnectedAwaitingBar
+  ) {
     return null;
   }
 
@@ -108,10 +121,28 @@ export function NowPlayingPopover({ spotify }: NowPlayingPopoverProps) {
 
       {error != null && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText} numberOfLines={1}>
-            {'Unable to connect. Make sure Spotify is open and try again.'}
+          <Text style={styles.errorText} numberOfLines={5}>
+            {error}
           </Text>
         </View>
+      )}
+
+      {showConnectedAwaitingBar && (
+        <Animated.View style={[styles.bar, animatedBarStyle]}>
+          <Image
+            source={require('../../assets/spotify-logo.png')}
+            style={styles.spotifyLogoSmall}
+            resizeMode="contain"
+          />
+          <View style={styles.awaitingTextWrap}>
+            <Text style={styles.awaitingTitle} numberOfLines={1}>
+              Connected to Spotify
+            </Text>
+            <Text style={styles.awaitingHint} numberOfLines={2}>
+              Start playback in the Spotify app — the track will appear here.
+            </Text>
+          </View>
+        </Animated.View>
       )}
 
       {visible && track && (
@@ -280,6 +311,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: pedalColors.toggleChrome,
     flex: 1,
+  },
+  awaitingTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  awaitingTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: pedalColors.indicatorWhite,
+  },
+  awaitingHint: {
+    fontSize: 10,
+    color: pedalColors.toggleChrome,
+    marginTop: 2,
   },
   connectingText: {
     fontSize: 12,

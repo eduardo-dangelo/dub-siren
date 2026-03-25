@@ -13,6 +13,8 @@ export interface NowPlayingTrack {
 
 export interface UseSpotifyPlaybackResult {
   visible: boolean;
+  /** True when App Remote is connected but there is no current track (start playback in Spotify). */
+  isConnectedAwaitingPlayback: boolean;
   track: NowPlayingTrack | null;
   isPlaying: boolean;
   isConnecting: boolean;
@@ -43,20 +45,116 @@ function isSpotifyAppUnavailableError(message: string): boolean {
     lower.includes('connection refused') ||
     lower.includes('connection attempt failed') ||
     lower.includes('not installed') ||
-    lower.includes('does not appear to be installed')
+    lower.includes('does not appear to be installed') ||
+    // App Remote needs Spotify open; user can open it and retry — not "uninstalled".
+    lower.includes('spotify is not running')
   ) {
     return false;
   }
   return (
     lower.includes('couldnotfindspotifyapp') ||
-    lower.includes('could not find spotify') ||
-    lower.includes('spotify is not running')
+    lower.includes('could not find spotify')
   );
 }
 
 const NATIVE = Platform.OS === 'ios' || Platform.OS === 'android';
 
 const SPOTIFY_WEB_API = 'https://api.spotify.com/v1';
+
+const APP_ACTIVE_WAIT_MS = 60_000;
+
+/**
+ * After OAuth, JS may resume while iOS is still inactive/background. App Remote
+ * connect often fails unless the app is active (common on iPhone full-screen Safari).
+ */
+function waitForAppActive(timeoutMs = APP_ACTIVE_WAIT_MS): Promise<void> {
+  if (AppState.currentState === 'active') {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      sub.remove();
+      reject(new Error('Timed out waiting for app to return to foreground'));
+    }, timeoutMs);
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        clearTimeout(timeout);
+        sub.remove();
+        resolve();
+      }
+    });
+  });
+}
+
+function isRecoverableAppRemoteError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('not running') ||
+    lower.includes('connection refused') ||
+    lower.includes('connection attempt failed') ||
+    lower.includes('failed to connect') ||
+    lower.includes('timed out') ||
+    lower.includes('timeout') ||
+    lower.includes('app remote')
+  );
+}
+
+async function connectAppRemote(accessToken: string): Promise<void> {
+  await waitForAppActive();
+  try {
+    await remote.connect(accessToken);
+    return;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (!NATIVE || !isRecoverableAppRemoteError(message)) {
+      throw e;
+    }
+    try {
+      await Linking.openURL('spotify://');
+    } catch {
+      // ignore openURL failures
+    }
+    await new Promise((r) => setTimeout(r, 800));
+    await waitForAppActive();
+    await remote.connect(accessToken);
+  }
+}
+
+const GET_PLAYER_STATE_MS = 12_000;
+
+function getPlayerStateWithTimeout(): Promise<PlayerState | null> {
+  return Promise.race([
+    remote.getPlayerState(),
+    new Promise<PlayerState | null>((_, reject) =>
+      setTimeout(() => reject(new Error('getPlayerState timed out')), GET_PLAYER_STATE_MS),
+    ),
+  ]).catch(() => null);
+}
+
+/** RN native rejects often include `code` + `message`; plain `Error` can lose the code. */
+function formatUnknownError(e: unknown): string {
+  if (typeof e === 'string' && e.length > 0) return e;
+  if (e instanceof Error && e.message) {
+    const withCode = e as Error & { code?: unknown };
+    if (typeof withCode.code === 'string' && withCode.code.length > 0) {
+      return `${withCode.code}: ${e.message}`;
+    }
+    return e.message;
+  }
+  if (e && typeof e === 'object') {
+    const o = e as Record<string, unknown>;
+    const code = typeof o.code === 'string' ? o.code : '';
+    const message = typeof o.message === 'string' ? o.message : '';
+    if (code && message) return `${code}: ${message}`;
+    if (message) return message;
+    if (code) return code;
+  }
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
 
 function normalizeImageUri(raw: unknown): string | null {
   if (typeof raw === 'string' && raw.length > 0) return raw;
@@ -139,17 +237,14 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
     setError(null);
     setIsSpotifyAppUnavailable(false);
     setIsConnecting(true);
+    let connectSucceeded = false;
     try {
       const session = await auth.authorize(spotifyConfig);
-      await remote.connect(session.accessToken);
+      await connectAppRemote(session.accessToken);
       setIsConnected(true);
-      const state = await remote.getPlayerState();
-      setPlayerState(state);
-      if (state?.track) {
-        setHasSeenPlayerState(true);
-      }
+      connectSucceeded = true;
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
+      const message = formatUnknownError(e);
       setError(message);
       setIsConnected(false);
       setPlayerState(null);
@@ -157,8 +252,25 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
         setIsSpotifyAppUnavailable(true);
       }
     } finally {
+      // Clear "Connecting" as soon as auth + App Remote finish — do not await getPlayerState
+      // here; it can hang on some devices and would leave the button stuck forever.
       isConnectingRef.current = false;
       setIsConnecting(false);
+    }
+    if (connectSucceeded) {
+      void (async () => {
+        try {
+          const state = await getPlayerStateWithTimeout();
+          if (state) {
+            setPlayerState(state);
+            if (state.track) {
+              setHasSeenPlayerState(true);
+            }
+          }
+        } catch {
+          // playerStateChanged listener may still deliver state
+        }
+      })();
     }
   }, [hasSpotifyApp]);
 
@@ -176,14 +288,6 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
     setIsConnected(false);
     setPlayerState(null);
   }, []);
-
-  // Safety: ensure connecting state is cleared when we have an error
-  useEffect(() => {
-    if (error != null) {
-      isConnectingRef.current = false;
-      setIsConnecting(false);
-    }
-  }, [error]);
 
   useEffect(() => {
     if (!NATIVE || !isConnected) return;
@@ -260,14 +364,21 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
         try {
           const existingSession: SpotifySession | undefined = await auth.getSession();
           if (!cancelled && existingSession && !existingSession.expired) {
-            await remote.connect(existingSession.accessToken);
+            await connectAppRemote(existingSession.accessToken);
             if (cancelled) return;
             setIsConnected(true);
-            const state = await remote.getPlayerState();
-            setPlayerState(state);
-            if (state?.track) {
-              setHasSeenPlayerState(true);
-            }
+            void (async () => {
+              try {
+                const state = await getPlayerStateWithTimeout();
+                if (cancelled || !state) return;
+                setPlayerState(state);
+                if (state.track) {
+                  setHasSeenPlayerState(true);
+                }
+              } catch {
+                // ignore
+              }
+            })();
             return;
           }
         } catch {
@@ -278,11 +389,18 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
         const connected = await remote.isConnectedAsync();
         if (!cancelled && connected) {
           setIsConnected(true);
-          const state = await remote.getPlayerState();
-          setPlayerState(state);
-          if (state?.track) {
-            setHasSeenPlayerState(true);
-          }
+          void (async () => {
+            try {
+              const state = await getPlayerStateWithTimeout();
+              if (cancelled || !state) return;
+              setPlayerState(state);
+              if (state.track) {
+                setHasSeenPlayerState(true);
+              }
+            } catch {
+              // ignore
+            }
+          })();
         }
       } catch {
         // ignore bootstrap errors
@@ -300,11 +418,18 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
     if (!NATIVE) return;
 
     const handleAppState = (nextState: AppStateStatus) => {
-      if (appStateRef.current === 'active' && nextState !== 'active') {
-        void disconnect();
-      }
       if (nextState === 'active') {
         setIsSpotifyAppUnavailable(false);
+      }
+      // Only disconnect when the app is fully backgrounded. iOS `inactive` fires for OAuth
+      // sheets, Control Center, and other overlays — tearing down App Remote there breaks
+      // iPhone connect flows. Skip while authorize/connect is in flight.
+      const shouldDisconnect =
+        !isConnectingRef.current &&
+        appStateRef.current === 'active' &&
+        nextState === 'background';
+      if (shouldDisconnect) {
+        void disconnect();
       }
       appStateRef.current = nextState;
     };
@@ -366,10 +491,18 @@ export function useSpotifyPlayback(): UseSpotifyPlaybackResult {
     (isConnected || hasSeenPlayerState) &&
     Boolean(track) &&
     !isConnecting;
+  const isConnectedAwaitingPlayback =
+    NATIVE &&
+    isSpotifyConfigured &&
+    hasSpotifyApp &&
+    isConnected &&
+    !isConnecting &&
+    !track;
   const hasPlayerContext = Boolean(track) || hasSeenPlayerState;
 
   return {
     visible: !!visible,
+    isConnectedAwaitingPlayback,
     track,
     isPlaying: playerState ? !playerState.isPaused : false,
     isConnecting,
