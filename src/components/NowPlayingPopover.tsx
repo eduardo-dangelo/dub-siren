@@ -5,7 +5,7 @@ import { pedalColors } from '../theme/pedalColors';
 import type { NowPlayingTrack, UseSpotifyPlaybackResult } from '../hooks/useSpotifyPlayback';
 
 /** Set inner value to `true` in dev to preview the now-playing bar without Spotify. */
-const USE_MOCK_NOW_PLAYING = __DEV__ && false;
+const USE_MOCK_NOW_PLAYING = __DEV__ && true;
 
 const MOCK_TRACK: NowPlayingTrack = {
   name: 'Chase the Devil',
