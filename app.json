@@ -18,13 +18,20 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "buildNumber": "2",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.dub-siren",
+      "icon": {
+        "light": "./landing/assets/dub-siren-icon.png",
+        "dark": "./landing/assets/dub-siren-icon-dark.png",
+        "tinted": "./landing/assets/dub-siren-icon-tinted.png"
+      },
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "spotify",
           "spotify-action"
-        ]
+        ],
+        "NSMicrophoneUsageDescription": "Dub Siren uses the system audio session for playback and effects. A microphone usage description is required because the audio components in this app may reference microphone-related APIs for routing and compatibility, even when the microphone is not actively used."
       }
     },
     "android": {
