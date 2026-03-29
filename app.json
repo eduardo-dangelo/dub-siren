@@ -9,7 +9,7 @@
       "android"
     ],
     "orientation": "landscape",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/dub_siren_icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -18,25 +18,26 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.dub-siren",
       "icon": {
-        "light": "./landing/assets/dub-siren-icon.png",
-        "dark": "./landing/assets/dub-siren-icon-dark.png",
-        "tinted": "./landing/assets/dub-siren-icon-tinted.png"
+        "light": "./assets/dub_siren_icon.png",
+        "dark": "./assets/dub_siren_icon_dark.png",
+        "tinted": "./assets/dub_siren_icon_tinted.png"
       },
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "spotify",
           "spotify-action"
         ],
-        "NSMicrophoneUsageDescription": "Dub Siren uses the system audio session for playback and effects. A microphone usage description is required because the audio components in this app may reference microphone-related APIs for routing and compatibility, even when the microphone is not actively used."
+        "NSMicrophoneUsageDescription": "Dub Siren uses the system audio session for playback and effects. A microphone usage description is required because the audio components in this app may reference microphone-related APIs for routing and compatibility, even when the microphone is not actively used.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/dub_siren_icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
