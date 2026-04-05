@@ -18,7 +18,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "buildNumber": "3",
+      "buildNumber": "6",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.dub-siren",
       "icon": {
@@ -51,7 +51,12 @@
       "package": "com.anonymous.dubsiren"
     },
     "plugins": [
-      "react-native-audio-api",
+      [
+        "react-native-audio-api",
+        {
+          "iosBackgroundMode": false
+        }
+      ],
       "./plugins/withSpotifyUrlHandler.js"
     ]
   }

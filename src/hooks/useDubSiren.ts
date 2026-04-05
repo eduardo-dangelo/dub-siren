@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import {
   AudioContext,
   AudioManager,
@@ -83,6 +83,24 @@ function makeInitialButtonState(): ButtonPlaybackState {
     minDurationTimeoutId: null,
     gainNode: null,
   };
+}
+
+/** Clears timeouts, stops sources, disconnects the button gain from the graph (avoids parallel summing / clipping), then resets state. */
+function resetButtonPlaybackState(stateRef: MutableRefObject<ButtonPlaybackState>) {
+  const state = stateRef.current;
+  if (state.allTimeoutId) clearTimeout(state.allTimeoutId);
+  if (state.endTimeoutId) clearTimeout(state.endTimeoutId);
+  if (state.minDurationTimeoutId) clearTimeout(state.minDurationTimeoutId);
+  stopSource(state.allSource);
+  stopSource(state.endSource);
+  if (state.gainNode) {
+    try {
+      state.gainNode.disconnect();
+    } catch {
+      // ignore
+    }
+  }
+  stateRef.current = makeInitialButtonState();
 }
 
 function createBufferSource(ctx: AudioContext): BufferSourceNode {
@@ -198,6 +216,8 @@ export function useDubSiren(): UseDubSirenReturn {
   const resetAudioContext = useCallback(() => {
     const ctx = audioContextRef.current;
     if (!ctx) return;
+    resetButtonPlaybackState(sirenStateRef);
+    resetButtonPlaybackState(toneStateRef);
     try {
       if (typeof ctx.close === 'function' && ctx.state !== 'closed') {
         void ctx.close();
@@ -217,8 +237,6 @@ export function useDubSiren(): UseDubSirenReturn {
       mainAllTimeoutIdRef.current = null;
     }
     setIsPlaying(false);
-    sirenStateRef.current = makeInitialButtonState();
-    toneStateRef.current = makeInitialButtonState();
   }, []);
 
   const applyFadeIn = useCallback((ctx: AudioContext, gain: GainNode) => {
@@ -389,20 +407,11 @@ export function useDubSiren(): UseDubSirenReturn {
     }
   }, [resetDelayConvolverIfNeeded]);
 
-  const stopSingleButton = useCallback(
-    (stateRef: React.MutableRefObject<ButtonPlaybackState>) => {
-      const state = stateRef.current;
-      if (state.allTimeoutId) clearTimeout(state.allTimeoutId);
-      if (state.endTimeoutId) clearTimeout(state.endTimeoutId);
-      if (state.minDurationTimeoutId) clearTimeout(state.minDurationTimeoutId);
-      stopSource(state.allSource);
-      stopSource(state.endSource);
-      stateRef.current = makeInitialButtonState();
-    },
-    []
-  );
+  const stopSingleButton = useCallback((stateRef: MutableRefObject<ButtonPlaybackState>) => {
+    resetButtonPlaybackState(stateRef);
+  }, []);
 
-  /** Stop siren and tone playback (cut sound, reset to idle). Does not disconnect gain nodes. */
+  /** Stop siren and tone playback (cut sound, reset to idle). Disconnects per-button gains from the graph. */
   const stopSirenAndTone = useCallback(() => {
     stopSingleButton(sirenStateRef);
     stopSingleButton(toneStateRef);
@@ -521,7 +530,7 @@ export function useDubSiren(): UseDubSirenReturn {
             `[DubSiren] startEndForButton(${kind}): no buffer for end, resetting button state`
           );
         }
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
         return;
       }
 
@@ -533,7 +542,7 @@ export function useDubSiren(): UseDubSirenReturn {
       } catch (e) {
         console.warn(`${kind}: end connect failed`, e);
         stopSource(endSource);
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
         return;
       }
 
@@ -554,7 +563,7 @@ export function useDubSiren(): UseDubSirenReturn {
         } catch {
           // ignore
         }
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
         setPlayingFalseIfNothingElse();
         if (!mainSourceRef.current) {
           resetAudioContext();
@@ -577,7 +586,7 @@ export function useDubSiren(): UseDubSirenReturn {
       } catch (e) {
         console.warn(`${kind}: end start failed`, e);
         stopSource(endSource);
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
       }
     },
     [ensureOutputChain, getAudioContext, resetAudioContext, setPlayingFalseIfNothingElse]
@@ -654,7 +663,7 @@ export function useDubSiren(): UseDubSirenReturn {
             `[DubSiren] beginButtonSequence(${kind}): no buffer for _ALL, resetting button state`
           );
         }
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
         return;
       }
 
@@ -663,7 +672,7 @@ export function useDubSiren(): UseDubSirenReturn {
         if (__DEV__) {
           console.log(`[DubSiren] beginButtonSequence(${kind}): released during load, abort`);
         }
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
         return;
       }
 
@@ -675,7 +684,7 @@ export function useDubSiren(): UseDubSirenReturn {
       } catch (e) {
         console.warn(`${kind}: _ALL connect failed`, e);
         stopSource(allSource);
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
         return;
       }
 
@@ -734,7 +743,7 @@ export function useDubSiren(): UseDubSirenReturn {
       } catch (e) {
         console.warn(`${kind}: _ALL start failed`, e);
         stopSource(allSource);
-        stateRef.current = makeInitialButtonState();
+        resetButtonPlaybackState(stateRef);
       }
     },
     [ensureOutputChain, getAudioContext, resetDelayConvolverIfNeeded, setPlayingFalseIfNothingElse]
@@ -955,26 +964,7 @@ export function useDubSiren(): UseDubSirenReturn {
     stopMainSample();
     const buttonRefs = [sirenStateRef, toneStateRef];
     buttonRefs.forEach((ref) => {
-      const state = ref.current;
-      if (state.allTimeoutId) {
-        clearTimeout(state.allTimeoutId);
-      }
-      if (state.endTimeoutId) {
-        clearTimeout(state.endTimeoutId);
-      }
-      if (state.minDurationTimeoutId) {
-        clearTimeout(state.minDurationTimeoutId);
-      }
-      stopSource(state.allSource);
-      stopSource(state.endSource);
-      if (state.gainNode) {
-        try {
-          state.gainNode.disconnect();
-        } catch {
-          // ignore
-        }
-      }
-      ref.current = makeInitialButtonState();
+      resetButtonPlaybackState(ref);
     });
     const toDisconnect = [
       delayInputRef.current,
