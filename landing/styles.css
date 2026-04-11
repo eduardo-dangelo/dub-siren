@@ -250,6 +250,25 @@ img {
   );
   color: #111115;
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+}
+
+.button.primary .cta-apple-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.button.primary .cta-apple-icon svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+}
+
+.button.primary .cta-apple-label {
+  line-height: 1;
+  display: block;
 }
 
 .button.ghost {
